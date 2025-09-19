@@ -1,0 +1,4 @@
+安裝node 使用指令:
+npm install node
+npm install discord.js dotenv
+
