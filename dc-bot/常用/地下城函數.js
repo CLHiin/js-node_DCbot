@@ -5,7 +5,7 @@ function distance(p1, p2) {
     return Math.abs(p1[0]-p2[0]) + Math.abs(p1[1]-p2[1]);
 }
 
-// BFS 檢查通路
+// BFS 檢查通路 (沒用到)
 function isReachable(maze, endPos = null) {
     const n = maze.length;
     const visited = Array.from({length:n}, () => Array(n).fill(false));
@@ -68,7 +68,7 @@ function countElements(maze) {
 
 function shuffle(arr){ return arr.sort(() => Math.random()-0.5); }
 
-// 少密度：老鼠走迷宮生成牆壁，15~25%牆
+// 少密度：迷宮生成牆壁，15~25%牆
 function generateSparse(n) {
     const maze = Array.from({length:n}, () => Array(n).fill('W'));
     const dirs = [[0,1],[1,0],[0,-1],[-1,0]];
