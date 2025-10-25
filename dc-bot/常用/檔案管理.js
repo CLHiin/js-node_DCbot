@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch'); // v2
 
-const baseDir = path.join(__dirname, '..', '公用檔案');
+const baseDir = path.join(__dirname, '..', '公用圖片');
 
 async function ensureGuildFolder(guildId) {
   const guildFolder = path.join(baseDir, guildId);

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getUser, updateUser } = require('../常用/儲存檔');
+const { DataStore } = require('../常用/儲存檔');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -10,8 +10,11 @@ module.exports = {
     const guildId = interaction.guildId;
     const userId = interaction.user.id;
     const today = new Date().toISOString().split('T')[0];
-    let user = getUser(guildId, userId, 'user');
-    let sset = getUser(guildId, null, 'set');
+    const memberObj = interaction.guild.members.cache.get(userId);
+    const displayName = memberObj?.displayName || interaction.user.username;
+
+    let user = DataStore.get(guildId, userId);
+    let sset = DataStore.get(guildId, 'serverSettings');
 
     if (sset.參拜功德 < 0) {
       const embed = new EmbedBuilder()
@@ -21,20 +24,22 @@ module.exports = {
       return interaction.reply({ embeds: [embed] });
     }
     let 參拜 = user.最後參拜日期 !== today;
+    const 原剩餘功德 = user.剩餘功德;
+    const 原累積功德 = user.累積功德;
     if (參拜) {
       user.參拜次數 += 1;
       user.剩餘功德 += sset.參拜功德;
       user.累積功德 += sset.參拜功德;
       user.最後參拜日期 = today;
-      updateUser(guildId, userId, user);
+      DataStore.update(guildId, userId, user);
     }
     const embed = new EmbedBuilder()
-      .setTitle(參拜 ? '🔯感謝您的參拜！' : '🔯你已參拜過了！')
+      .setTitle(參拜 ? `🔯 ${displayName}進行了參拜！` : '🔯 你已參拜過了！')
       .setDescription([
         `🪔 參拜功德： **${sset.參拜功德}**`,
         `📿 參拜次數： **${user.參拜次數}**`,
-        `🙏 剩餘功德： **${user.剩餘功德}**`,
-        `🛐 累積功德： **${user.累積功德}**`,
+        `🙏 剩餘功德： **${原剩餘功德} -> ${user.剩餘功德}**`,
+        `🛐 累積功德： **${原累積功德} -> ${user.累積功德}**`,
       ].join('\n'))
       .setFooter({ text: `最後參拜日: ${user.最後參拜日期}` })
       .setColor(0x00FF00);

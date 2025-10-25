@@ -8,6 +8,8 @@ const {
 } = require('discord.js');
 const file = new AttachmentBuilder('./圖片/rua.png');
 
+// 表情定義統一處理
+const RUA_EMOJI = '<:rua:1399369942578761739>';
 const CAT_EMOJI = '<:CattoNeko_01:1399372634742980608>';
 
 // rua 描述文字
@@ -58,7 +60,7 @@ module.exports = {
     await interaction.reply({content: `${targetUser}`, embeds: [embed邀請], components: [row] });
 
     // 收集按鈕回應
-    const filter = i =>['rua_accept', 'rua_decline'].includes(i.customId) && i.user.id === targetUser.id;
+    const filter = i => ['rua_accept', 'rua_decline'].includes(i.customId) && i.user.id === targetUser.id;
     const collector = interaction.channel.createMessageComponentCollector({ filter, time: 30000, max: 1 });
     collector.on('collect', async i => {
       if (i.customId === 'rua_accept') return await 可以rua(i, 'Rua 同意 ✅', interaction.user, targetUser);

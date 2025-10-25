@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { getUser, updateUser } = require('../常用/儲存檔');
+const { DataStore } = require('../常用/儲存檔');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -25,7 +25,7 @@ module.exports = {
     }
 
     // 取得用戶資料，初始化特殊物件為空物件
-    const user = getUser(guildId, userId, 'user');
+    const user = DataStore.get(guildId, userId);
 
     let 操作訊息 = '';
 
@@ -43,7 +43,7 @@ module.exports = {
       }
 
       // 儲存回檔案
-      updateUser(guildId, userId, user);
+      DataStore.update(guildId, userId, user);
     } else {
       操作訊息 = '🔍 查詢特殊物件清單（無修改）';
     }

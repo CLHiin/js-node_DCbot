@@ -3,7 +3,7 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('say')
-    .setDescription('💬 讓機器人說一句話（管理員或指定使用者）') 
+    .setDescription('💬 讓機器人說一句話(管理員限定)') 
     .addStringOption(option =>
       option.setName('message')
         .setDescription('要說的內容')

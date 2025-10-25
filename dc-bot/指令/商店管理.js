@@ -1,11 +1,11 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const { getUser, updateUser } = require('../常用/儲存檔');
+const { DataStore } = require('../常用/儲存檔');
 const fileManager = require('../常用/檔案管理'); // 僅檔案用
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('商店管理')
-    .setDescription('🎁 (管理員限定)新增、修改或刪除商品')
+    .setDescription('🎁 新增、修改或刪除商品(管理員限定)')
     .addIntegerOption(o => o.setName('操作').setDescription('(管理員限定)0:新增 | 1:刪除 | 2:修改').setRequired(true))
     .addStringOption(o => o.setName('名稱').setDescription('(新增/修改/刪除必填)商品名稱').setRequired(true))
     .addStringOption(o => o.setName('描述').setDescription('(新增必填/修改用)商品描述').setRequired(false))
@@ -41,7 +41,7 @@ module.exports = {
     const 新名稱 = interaction.options.getString('新名稱');
     const 移除項目 = interaction.options.getString('移除項目');
 
-    const sset = getUser(guildId, null, 'set');
+    const sset = DataStore.get(guildId, 'serverSettings');
     const list = sset.商品清單;
     const findItem = list.find(p => p.名稱 === 名稱);
 
@@ -69,7 +69,7 @@ module.exports = {
         }
 
         list.push(newItem);
-        updateUser(guildId, null, sset);
+        DataStore.update(guildId, null, sset);
 
         const embed = new EmbedBuilder()
           .setTitle('🎉 成功新增商品')
@@ -94,7 +94,7 @@ module.exports = {
         // 刪除
         if (findItem.檔案名稱) await fileManager.moveFileToTrash(guildId, findItem.檔案名稱);
         sset.商品清單 = list.filter(item => item !== findItem);
-        updateUser(guildId, null, sset);
+        DataStore.update(guildId, null, sset);
         return interaction.reply({ content: `🗑️ 已刪除「${名稱}」` });
       }
 
@@ -125,7 +125,7 @@ module.exports = {
         // 特殊物件直接更新欄位，不操作檔案
         if (特殊物件) findItem.特殊物件 = 特殊物件;
 
-        updateUser(guildId, null, sset);
+        DataStore.update(guildId, null, sset);
 
         const embed = new EmbedBuilder()
           .setTitle('✅ 商品已更新')

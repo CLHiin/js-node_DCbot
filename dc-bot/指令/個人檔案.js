@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getUser, updateUser } = require('../常用/儲存檔');
+const { DataStore } = require('../常用/儲存檔');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -15,12 +15,12 @@ module.exports = {
     const username = targetUser.username;
     const userId = targetUser.id;
 
-    const user = getUser(guildId, userId, 'user');
+    const user = DataStore.get(guildId, userId);
 
     // 修改留言（只能改自己的）
     if (targetUser.id === interaction.user.id && input留言) {
       user.留言 = input留言;
-      updateUser(guildId, userId, user);
+      DataStore.update(guildId, userId, user);
     }
 
     const embed = new EmbedBuilder()

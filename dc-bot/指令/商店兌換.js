@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
-const { getUser, updateUser } = require('../常用/儲存檔');
+const { DataStore } = require('../常用/儲存檔');
 const fileManager = require('../常用/檔案管理');
 const fs = require('fs');
 
@@ -16,8 +16,8 @@ module.exports = {
     const 指定用戶 = interaction.options.getUser('目標') || interaction.user;
 
     const 商品名稱 = interaction.options.getString('名稱');
-    const serverData = getUser(guildId, null, 'set');
-    const 付款者資料 = getUser(guildId, 呼叫者ID, { 剩餘功德: 0 });
+    const serverData = DataStore.get(guildId, 'serverSettings');
+    const 付款者資料 = DataStore.get(guildId, 呼叫者ID);
     const 商品 = serverData.商品清單.find(item => item.名稱 === 商品名稱);
 
     if (!商品)
@@ -30,7 +30,7 @@ module.exports = {
 
     // 扣除呼叫者的功德
     付款者資料.剩餘功德 -= 商品.價格;
-    updateUser(guildId, 呼叫者ID, 付款者資料);
+    DataStore.update(guildId, 呼叫者ID, 付款者資料);
 
     // 準備 embed
     const embed = new EmbedBuilder()
@@ -58,10 +58,10 @@ module.exports = {
 
     // 特殊物件處理
     if (商品.特殊物件) {
-      const 受贈者資料 = getUser(guildId, 指定用戶.id, { 特殊物件: {} });
+      const 受贈者資料 = DataStore.get(guildId, 指定用戶.id);
       const 現有數量 = 受贈者資料.特殊物件[商品.特殊物件] || 0;
       受贈者資料.特殊物件[商品.特殊物件] = 現有數量 + 1;
-      updateUser(guildId, 指定用戶.id, 受贈者資料);
+      DataStore.update(guildId, 指定用戶.id, 受贈者資料);
     }
 
     // 判斷自己 or 別人

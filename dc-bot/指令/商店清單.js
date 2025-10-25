@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getUser } = require('../常用/儲存檔');
+const { DataStore } = require('../常用/儲存檔');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -8,7 +8,7 @@ module.exports = {
 
   async execute(interaction) {
     const guildId = interaction.guildId;
-    const sset = getUser(guildId, null, 'set');
+    const sset = DataStore.get(guildId, 'serverSettings');
     const 商品清單 = sset.商品清單;
     if (!商品清單 || 商品清單.length === 0) 
       return interaction.reply('目前沒有任何商品喔！');
