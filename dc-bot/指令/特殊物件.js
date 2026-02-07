@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { DataStore } = require('../常用/儲存檔');
+const { safeReply } = require('../常用/工具');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -19,8 +20,8 @@ module.exports = {
 
     // 如果是要修改，則檢查權限
     if ((物件名稱 !== null && 物件名稱 !== undefined) && (數量 !== null && 數量 !== undefined)) {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return interaction.reply({ content: '❌ 你沒有權限使用此指令來修改特殊物件。', ephemeral: true });
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {      
+        return safeReply(interaction, { content: '❌ 你沒有權限使用此指令來修改特殊物件。', ephemeral: true });
       }
     }
 
@@ -51,14 +52,11 @@ module.exports = {
     // 準備要顯示的特殊物件列表
     const 特殊物件清單 = Object.entries(user.特殊物件);
     const 特殊物件描述 = 特殊物件清單.length > 0
-      ? 特殊物件清單.map(([k, v]) => `${k} × ${v}`).join('\n')
-      : '無';
-
+      ? 特殊物件清單.map(([k, v]) => `${k} × ${v}`).join('\n') : '無';
     const embed = new EmbedBuilder()
       .setTitle(`${targetUser.username} 的特殊物件`)
       .setColor(0x00AAFF)
       .setDescription(`${操作訊息}\n\n目前特殊物件：\n${特殊物件描述}`);
-
-    await interaction.reply({ embeds: [embed] });
+    safeReply(interaction, { embeds: [embed] });
   }
 };

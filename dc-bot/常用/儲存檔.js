@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const { gitSync } = require('../gitSync');
 
 const dataFilePath = path.resolve(__dirname, '資料庫.json');
-
 // ✅ 單純讀檔
 function loadData() {
   try {
@@ -15,17 +15,20 @@ function loadData() {
     return {};
   }
 }
-
 // ✅ 單純寫檔
 function saveData(data) {
   try {
     fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
+    try {
+      gitSync("Update JSON data");
+    } catch (err) {
+      console.error('⚠️ Git 同步錯誤:', err.message);
+    }
   }
   catch (error) {
     console.error('寫入資料失敗:', error);
   }
 }
-
 // ✅ 深度合併：補齊缺少的欄位，但不覆蓋既有資料
 function deepMerge(target, source) {
   for (const key in source) {
@@ -58,43 +61,22 @@ function deepMerge(target, source) {
   }
   return target;
 }
-
 // ✅ 預設資料
 const DEFAULTS = {
   serverSettings: {
     參拜功德: -1,
     商品清單: [],
     常駐獎池設定: {
-      消耗功德: 0,
-      SSR: 0,
-      SR : 0,
-      小保底起始: null,
-      小保底終點: null,
-      大保底: null,
-      召神值: false,
-      開放: false,
-      獎品清單: []
+      消耗功德: 0, SSR: 0, SR : 0, 小保底起始: null, 小保底終點: null,
+      大保底: null, 召神值: false, 開放: false, 獎品清單: []
     },
     限定獎池設定: {
-      消耗功德: 0,
-      SSR: 0,
-      SR : 0,
-      小保底起始: null,
-      小保底終點: null,
-      大保底: null,
-      召神值: false,
-      開放: false,
-      獎品清單: []
+      消耗功德: 0, SSR: 0, SR : 0, 小保底起始: null, 小保底終點: null,
+      大保底: null, 召神值: false, 開放: false, 獎品清單: []
     },
     地下城: {
-      地圖大小: null,
-      牆壁密度: null,
-      鑽石數量: null,
-      每日步數: null,
-      鑽石功德: null,
-      終點功德: null,
-      統一地圖: null,
-      地圖: null
+      地圖大小: null, 牆壁密度: null, 鑽石數量: null, 每日步數: null,
+      鑽石功德: null, 終點功德: null, 統一地圖: null, 地圖: null
     },
   },
   user: {
@@ -104,23 +86,14 @@ const DEFAULTS = {
     最後參拜日期: '無資料',
     留言: null,
     特殊物件: {},
-    常駐獎池: { 總抽數: 0, 小保: 0, 大保: 0 },
-    限定獎池: { 總抽數: 0, 小保: 0, 大保: 0 },
+    常駐獎池: { 總計抽數: 0, 該期抽數: 0, 小保: 0, 大保: 0},
+    限定獎池: { 總計抽數: 0, 該期抽數: 0, 小保: 0, 大保: 0},
     地下城: {
-      刷新日期: null,
-      探索日期: null,
-      步數: null,
-      地圖: null,
-      探索: null,
-      可視: null,
-      座標: null,
-      鑽石: null,
-      完成: false,
-      探索時間: null
+      刷新日期: null, 探索日期: null, 步數: null, 地圖: null, 探索: null,
+      可視: null, 座標: null, 鑽石: null, 完成: false, 探索時間: null
     }
   }
 };
-
 // ✅ 資料存取器
 const DataStore = {
   // 取得資料
@@ -161,6 +134,10 @@ const DataStore = {
       delete data[guildId][userId];
       saveData(data);
     }
+  },
+
+  getAll() {
+    return loadData();
   }
 };
 

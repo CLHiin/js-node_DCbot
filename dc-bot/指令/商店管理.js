@@ -1,6 +1,23 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const { DataStore } = require('../常用/儲存檔');
-const fileManager = require('../常用/檔案管理'); // 僅檔案用
+const { safeReply } = require('../常用/工具');
+const fileManager = require('../常用/檔案管理');
+
+/* ========= 工具 ========= */
+
+async function handleFileUpdate({ guildId, item, remove, attachment }) {
+  if (!remove && !attachment) return;
+
+  if (item.檔案名稱) {
+    await fileManager.moveFileToTrash(guildId, item.檔案名稱);
+  }
+
+  item.檔案名稱 = attachment
+    ? await fileManager.saveFileFromUrl(guildId, attachment.url, attachment.name)
+    : null;
+}
+
+/* ========= 指令 ========= */
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -26,127 +43,126 @@ module.exports = {
     ),
 
   async execute(interaction) {
+    /* ===== 權限 ===== */
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return interaction.reply({ content: '❌ 你沒有權限使用此指令。', ephemeral: true });
+      return safeReply(interaction, { content: '❌ 你沒有權限使用此指令。', ephemeral: true });
     }
 
+    /* ===== 參數 ===== */
     const guildId = interaction.guildId;
-    const 操作 = interaction.options.getInteger('操作');
-    const 名稱 = interaction.options.getString('名稱');
-    const 描述 = interaction.options.getString('描述');
-    const 價格 = interaction.options.getNumber('價格');
-    const 身分組 = interaction.options.getRole('身分組');
-    const 附檔案 = interaction.options.getAttachment('檔案');
-    const 特殊物件 = interaction.options.getString('特殊物件');
-    const 新名稱 = interaction.options.getString('新名稱');
-    const 移除項目 = interaction.options.getString('移除項目');
+    const opt = interaction.options;
+
+    const 操作 = opt.getInteger('操作');
+    const 名稱 = opt.getString('名稱');
+    const 描述 = opt.getString('描述');
+    const 價格 = opt.getNumber('價格');
+    const 身分組 = opt.getRole('身分組')?.id || null;
+    const 附檔案 = opt.getAttachment('檔案');
+    const 特殊物件 = opt.getString('特殊物件') || null;
+    const 新名稱 = opt.getString('新名稱');
+    const 移除項目 = opt.getString('移除項目');
 
     const sset = DataStore.get(guildId, 'serverSettings');
     const list = sset.商品清單;
-    const findItem = list.find(p => p.名稱 === 名稱);
+    const findItem = list.find(i => i.名稱 === 名稱);
 
-    try {
-      if (操作 === 0) {
-        // 新增
-        if (!描述 || 價格 === undefined || 價格 === null) 
-          return interaction.reply({ content: '❌ 新增時必填：描述、價格', ephemeral: true });
+    /* ===== 操作處理 ===== */
 
-        let 新品名稱 = 名稱;
-        const 重複數 = list.filter(item => item.名稱.startsWith(名稱)).length;
-        if (重複數 > 0) 新品名稱 += ` (${重複數 + 1})`;
+    const handlers = {
+      /* === 新增 === */
+      0: async () => {
+        if (findItem)
+          return safeReply(interaction, { content: '❌ 商品名稱已存在', ephemeral: true });
+        if (!描述 || 價格 == null)
+          return safeReply(interaction, { content: '❌ 新增需填寫：描述、價格', ephemeral: true });
 
-        const newItem = {
-          名稱: 新品名稱,
-          描述,
-          價格,
-          身分組: 身分組 ? 身分組.id : null,
-          檔案名稱: null,
-          特殊物件: 特殊物件 || null,
-        };
-
-        if (附檔案) {
-          newItem.檔案名稱 = await fileManager.saveFileFromUrl(guildId, 附檔案.url, 附檔案.name);
-        }
+        const newItem = { 名稱, 描述, 價格, 身分組, 特殊物件, 檔案名稱: null };
+        if (附檔案) newItem.檔案名稱 = await fileManager.saveFileFromUrl(guildId, 附檔案.url, 附檔案.name);
 
         list.push(newItem);
-        DataStore.update(guildId, null, sset);
+        DataStore.update(guildId, 'serverSettings', sset);
 
-        const embed = new EmbedBuilder()
-          .setTitle('🎉 成功新增商品')
-          .setDescription([
-            `🎁 名稱：**${新品名稱}**`,
-            `📝 描述：**${描述}**`,
-            `💰 功德：**${價格}**`,
-            `🏷️ 身分組：**${身分組 ? `<@&${身分組.id}>` : '無'}**`,
-            `📎 檔案：**${newItem.檔案名稱 || '無'}**`,
-            `📦 特殊物件：**${newItem.特殊物件 || '無'}**`
-          ].join('\n'))
-          .setColor(0x00CC99);
+        return safeReply(interaction, {
+          embeds: [
+            new EmbedBuilder()
+              .setTitle('🎉 成功新增商品')
+              .setColor(0x00cc99)
+              .setDescription([
+                `🎁 名稱：**${newItem.名稱}**`,
+                `📝 描述：**${newItem.描述}**`,
+                `💰 價格：**${newItem.價格}**`,
+                `🏷️ 身分組：**${newItem.身分組 ? `<@&${newItem.身分組}>` : '無'}**`,
+                `📎 檔案：**${newItem.檔案名稱 || '無'}**`,
+                `📦 特殊物件：**${newItem.特殊物件 || '無'}**`,
+              ].join('\n')),
+          ],
+        });
+      },
 
-        return interaction.reply({ embeds: [embed] });
-      }
-
-      if (!findItem) {
-        return interaction.reply({ content: `❌ 找不到名稱為「${名稱}」的商品。`, ephemeral: true });
-      }
-
-      if (操作 === 1) {
-        // 刪除
+      /* === 刪除 === */
+      1: async () => {
+        if (!findItem) return safeReply(interaction, { content: '❌ 找不到商品', ephemeral: true });
         if (findItem.檔案名稱) await fileManager.moveFileToTrash(guildId, findItem.檔案名稱);
-        sset.商品清單 = list.filter(item => item !== findItem);
-        DataStore.update(guildId, null, sset);
-        return interaction.reply({ content: `🗑️ 已刪除「${名稱}」` });
-      }
+        sset.商品清單 = list.filter(i => i !== findItem);
+        DataStore.update(guildId, 'serverSettings', sset);
+        return safeReply(interaction, { content: `🗑️ 已刪除「${名稱}」` });
+      },
 
-      if (操作 === 2) {
-        // 修改
-        if (新名稱 && list.some(p => p !== findItem && p.名稱 === 新名稱)) {
-          return interaction.reply({ content: `❌ 已存在名稱「${新名稱}」`, ephemeral: true });
+      /* === 修改 === */
+      2: async () => {
+        if (!findItem) return safeReply(interaction, { content: '❌ 找不到商品', ephemeral: true });
+        if (新名稱 && list.some(i => i !== findItem && i.名稱 === 新名稱))
+          return safeReply(interaction, { content: '❌ 新名稱已存在', ephemeral: true });
+
+        /* 條件更新 */
+        const updates = { 名稱: 新名稱, 描述, 價格, 身分組, 特殊物件 };
+
+        for (const [key, value] of Object.entries(updates)) {
+          if (value != null) findItem[key] = value;
         }
 
-        if (新名稱) findItem.名稱 = 新名稱;
-        if (描述) findItem.描述 = 描述;
-        if (價格 !== undefined && 價格 !== null) findItem.價格 = 價格;
-        if (身分組) findItem.身分組 = 身分組.id;
+        /* 移除項目 */
+        const removeMap = {
+          身分組: () => (findItem.身分組 = null),
+          特殊物件: () => (findItem.特殊物件 = null),
+        };
+        removeMap[移除項目]?.();
 
-        // 處理移除項目
-        if (移除項目 === '身分組') findItem.身分組 = null;
-        if (移除項目 === '檔案' && findItem.檔案名稱) {
-          await fileManager.moveFileToTrash(guildId, findItem.檔案名稱);
-          findItem.檔案名稱 = null;
-        }
-        if (移除項目 === '特殊物件') findItem.特殊物件 = null;
+        /* 檔案 */
+        await handleFileUpdate({
+          guildId,
+          item: findItem,
+          remove: 移除項目 == '檔案',
+          attachment: 附檔案,
+        });
 
-        // 更新檔案
-        if (附檔案) {
-          if (findItem.檔案名稱) await fileManager.moveFileToTrash(guildId, findItem.檔案名稱);
-          findItem.檔案名稱 = await fileManager.saveFileFromUrl(guildId, 附檔案.url, 附檔案.name);
-        }
-        // 特殊物件直接更新欄位，不操作檔案
-        if (特殊物件) findItem.特殊物件 = 特殊物件;
+        DataStore.update(guildId, 'serverSettings', sset);
 
-        DataStore.update(guildId, null, sset);
+        return safeReply(interaction, {
+          embeds: [
+            new EmbedBuilder()
+              .setTitle('✅ 商品已更新')
+              .setColor(0x3399ff)
+              .setDescription([
+                `🎁 名稱：**${findItem.名稱}**`,
+                `📝 描述：**${findItem.描述 || '無'}**`,
+                `💰 價格：**${findItem.價格}**`,
+                `🏷️ 身分組：**${findItem.身分組 ? `<@&${findItem.身分組}>` : '無'}**`,
+                `📎 檔案：**${findItem.檔案名稱 || '無'}**`,
+                `📦 特殊物件：**${findItem.特殊物件 || '無'}**`,
+              ].join('\n')),
+          ],
+        });
+      },
+    };
 
-        const embed = new EmbedBuilder()
-          .setTitle('✅ 商品已更新')
-          .setDescription([
-            `🎁 名稱：**${findItem.名稱}**`,
-            `📝 描述：**${findItem.描述 || '無'}**`,
-            `💰 價格：**${findItem.價格}**`,
-            `🏷️ 身分組：**${findItem.身分組 ? `<@&${findItem.身分組}>` : '無'}**`,
-            `📎 檔案：**${findItem.檔案名稱 || '無'}**`,
-            `📦 特殊物件：**${findItem.特殊物件 || '無'}**`
-          ].join('\n'))
-          .setColor(0x3399FF);
-
-        return interaction.reply({ embeds: [embed] });
-      }
-
-      return interaction.reply({ content: '❌ 無效操作碼 (0:新增,1:刪除,2:修改)', ephemeral: true });
-
+    const handler = handlers[操作];
+    if (!handler) return safeReply(interaction, { content: '❌ 無效操作碼', ephemeral: true });
+    try {
+      await handler();
     } catch (err) {
       console.error(err);
-      return interaction.reply({ content: '❌ 發生錯誤，請稍後再試。', ephemeral: true });
+      return safeReply(interaction, { content: '❌ 發生錯誤，請稍後再試。', ephemeral: true });
     }
   },
 };

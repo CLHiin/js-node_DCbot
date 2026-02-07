@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const { RARITY, calcNextSSRRate, drawGacha, formatPrizeName } = require('../常用/獎池函數');
 const { DataStore } = require('../常用/儲存檔');
+const { safeReply } = require('../常用/工具');
 const fileManager = require('../常用/檔案管理');
 const fs = require('fs');
 
@@ -45,10 +46,10 @@ module.exports = {
     const poolSettings = serverData[poolType + '獎池設定'];
 
     if (!poolSettings || !poolSettings.獎品清單 || poolSettings.獎品清單.length === 0) {
-      return interaction.reply({ content: `❌ ${poolType}獎池尚未設置獎品`, ephemeral: true });
+      return safeReply(interaction, { content: `❌ ${poolType}獎池尚未設置獎品`, ephemeral: true });
     }
     if (!poolSettings.消耗功德){
-      return interaction.reply({ content: `❌ ${poolType}獎池未設定抽獎所需功德`, ephemeral: true });
+      return safeReply(interaction, { content: `❌ ${poolType}獎池未設定抽獎所需功德`, ephemeral: true });
     }
 
 
@@ -56,9 +57,12 @@ module.exports = {
     let 所有結果 = [], 獲得身分組 = [], 獲得檔案 = [], 本次特殊物件 = {};
     const 所需功德 = 抽數 * poolSettings.消耗功德;
     if (抽數 > 0) {
-      if (!是自己)                      return interaction.reply({ content: '❌ 你不能替其他使用者抽卡，只能查看狀態', ephemeral: true });
-      if (playerData.剩餘功德 < 所需功德)return interaction.reply({ content: `❌ 功德不足 (${playerData.剩餘功德} < ${所需功德})`, ephemeral: true });
-      if (!poolSettings.開放)           return interaction.reply({ content: '❌ 當前獎池未開放', ephemeral: true });
+      if (!是自己)
+        return safeReply(interaction, { content: '❌ 你不能替其他使用者抽卡，只能查看狀態', ephemeral: true });
+      if (playerData.剩餘功德 < 所需功德)
+        return safeReply(interaction, { content: `❌ 功德不足 (${playerData.剩餘功德} < ${所需功德})`, ephemeral: true });
+      if (!poolSettings.開放)
+        return safeReply(interaction, { content: '❌ 當前獎池未開放', ephemeral: true });
 
       // --- 抽獎 ---
       const result = drawGacha(poolSettings, playerData, 抽數, poolSettings.召神值, poolType == '限定');
@@ -85,10 +89,11 @@ module.exports = {
       .setDescription(
         `獎池功德：${poolSettings.消耗功德 ?? 1} / 抽\n` +
         `剩餘功德：${playerData.剩餘功德}\n` +
-        `總抽數：${playerData[poolType + '獎池'].總抽數}\n` +
+        `總計抽數：${playerData[poolType + '獎池'].總計抽數}\n` +
+        `該期抽數：${playerData[poolType + '獎池'].該期抽數}\n` +
         `小保底：${playerData[poolType + '獎池'].小保}（起點：${poolSettings.小保底起始 ?? '無'}，終點：${poolSettings.小保底終點 ?? '無'}）\n` +
         `大保底：${playerData[poolType + '獎池'].大保} / ${poolSettings.大保底 || '無'}（${poolSettings.召神值 ? '召神值模式' : '無召神值模式'}）\n` +
-        `下一抽SSR概率：${calcNextSSRRate(poolSettings, playerData).toFixed(2)}%\n` +
+        `下一抽SSR概率：${calcNextSSRRate(poolSettings, playerData, poolType == "限定").toFixed(2)}%\n` +
         `獎池狀態：${poolSettings.開放 ? '✅ 開放' : '❌ 關閉'}`
       );
 
@@ -98,13 +103,13 @@ module.exports = {
     }).join('\n');
     const poolEmbed = new EmbedBuilder().setTitle(`🎯 ${poolType}獎池獎品`).setColor(0xAA66CC).setDescription(獎池列);
 
-    await interaction.reply({embeds: [resultEmbed, statusEmbed, poolEmbed],ephemeral: 抽數 === 0 || !是自己});
+    await safeReply(interaction, {embeds: [resultEmbed, statusEmbed, poolEmbed], ephemeral: 抽數 == 0 || !是自己});
 
     // --- 發放身分組與檔案 ---
     for (const roleId of 獲得身分組) {
       const role = interaction.guild.roles.cache.get(roleId.replace(/[<@&>]/g, ''));
       if (role && memberObj && !memberObj.roles.cache.has(role.id)) {
-        try { await memberObj.roles.add(role); } catch {}
+        try { memberObj.roles.add(role); } catch {}
       }
     }
     for (const 檔案名稱 of 獲得檔案) {
@@ -114,10 +119,9 @@ module.exports = {
       const 獎品名稱 = 獎品物件 ? formatPrizeName(獎品物件) : '獎品';
       if (fs.existsSync(filePath)) {
         const attachment = new AttachmentBuilder(filePath);
-        await interaction.followUp({content: `❇️ 你抽到 【${獎品名稱}】 的附加檔案`,files: [attachment],ephemeral: true});
-      } else {
-        await interaction.followUp({ content: `⚠️ 找不到 ${獎品名稱} 的附加檔案。`, ephemeral: true });
+        safeReply(interaction, {content: `❇️ 你抽到 【${獎品名稱}】 的附加檔案`,files: [attachment], ephemeral: true}, false);
       }
+      else safeReply(interaction, { content: `⚠️ 找不到 ${獎品名稱} 的附加檔案。`, ephemeral: true });
     }
   }
 };

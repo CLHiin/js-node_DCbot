@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { DataStore } = require('../常用/儲存檔');
+const { safeReply } = require('../常用/工具');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,8 +21,13 @@ module.exports = {
     // 修改留言（只能改自己的）
     if (targetUser.id === interaction.user.id && input留言) {
       user.留言 = input留言;
-      DataStore.update(guildId, userId, user);
     }
+    const 特殊物件清單 = Object.entries(user.特殊物件).sort((a, b) => {
+      const len = str => [...str].reduce((acc, c) => c.charCodeAt(0) > 255 ? acc + 2 : acc + 1, 0);
+      return len(b[0]) - len(a[0]);
+    });
+    user.特殊物件 = Object.fromEntries(特殊物件清單);
+    DataStore.update(guildId, userId, user);
 
     const embed = new EmbedBuilder()
       .setTitle(`${username} 的個人檔案`)
@@ -47,7 +53,8 @@ module.exports = {
         {
           name: '🏆 常駐獎池狀態',
           value: 
-            `總抽數：${user.常駐獎池.總抽數}\n` +
+            `總抽數：${user.常駐獎池.總計抽數}\n` +
+            `該期抽數：${user.限定獎池.該期抽數}\n` +
             `小保底：${user.常駐獎池.小保}\n` +
             `大保底：${user.常駐獎池.大保}`,
           inline: false
@@ -55,13 +62,13 @@ module.exports = {
         {
           name: '🎯 限定獎池狀態',
           value:
-            `總抽數：${user.限定獎池.總抽數}\n` +
+            `總抽數：${user.限定獎池.總計抽數}\n` +
+            `該期抽數：${user.限定獎池.該期抽數}\n` +
             `小保底：${user.限定獎池.小保}\n` +
             `大保底：${user.限定獎池.大保}`,
           inline: false
         }
       );
-
-    await interaction.reply({ embeds: [embed] });
+    safeReply(interaction, { embeds: [embed] });
   }
 };

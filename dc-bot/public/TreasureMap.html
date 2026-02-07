@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>藏寶圖計算器</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; }
+input { width: 60px; margin: 2px; }
+h3 { margin-top: 20px; }
+button { margin-top: 10px; padding: 5px 10px; }
+table { border-collapse: collapse; margin-top: 10px; width: 100%; max-width: 1100px; }
+th, td { border: 1px solid #999; padding: 6px; text-align: center; }
+th { background: #f0f0f0; }
+.flex-container { display: flex; gap:20px; }
+.flex-left { flex: 1; }
+.flex-right { flex: 2; }
+</style>
+</head>
+<body>
+
+<h2>📊 藏寶圖計算器（回補+隨機隊長碎片）</h2>
+<div class="flex-container">
+<div class="flex-left">
+
+<h3>📅 時間</h3>
+天數 <input id="days" type="number" value="35">
+週數 <input id="weeks" type="number" value="6">
+
+<h3>📦 目前碎片</h3>
+神 <input id="f_shen" type="number" value="0">
+絕 <input id="f_jue" type="number" value="0">
+珍 <input id="f_zhen" type="number" value="0">
+凡 <input id="f_fan" type="number" value="0">
+
+<h3>🗺 已有藏寶圖（隊長）</h3>
+神 <input id="m_shen" type="number" value="0">
+絕 <input id="m_jue" type="number" value="0">
+珍 <input id="m_zhen" type="number" value="0">
+凡 <input id="m_fan" type="number" value="0">
+
+<h3>📜 任務碎片</h3>
+神 <input id="q_shen" type="number" value="4">
+絕 <input id="q_jue" type="number" value="5">
+珍 <input id="q_zhen" type="number" value="9">
+凡 <input id="q_fan" type="number" value="8">
+隨機 <input id="q_rand" type="number" value="20">
+
+<h3>🎲 每日隨機碎片</h3>
+<input id="daily_rand" type="number" value="19">
+
+<h3>⚖ 隨機轉化概率（總和 = 1）</h3>
+神 <input id="p_shen" type="number" value="0.01" step="0.01">
+絕 <input id="p_jue" type="number" value="0.1" step="0.01">
+珍 <input id="p_zhen" type="number" value="0.2" step="0.01">
+凡 <input id="p_fan" type="number" value="0.69" step="0.01">
+
+<br>
+<button onclick="calc()">計算</button>
+</div>
+
+<div class="flex-right">
+
+<h3>📈 收益對照表</h3>
+<table>
+<tr><th>品質</th><th>隊長通用</th><th>隊長屬性</th><th>隊員通用</th><th>隊員屬性</th></tr>
+<tr><td>神</td><td>40</td><td>30</td><td>20</td><td>15</td></tr>
+<tr><td>絕</td><td>20</td><td>16</td><td>10</td><td>8</td></tr>
+<tr><td>珍</td><td>10</td><td>8</td><td>5</td><td>4</td></tr>
+<tr><td>凡</td><td>5</td><td>4</td><td>3</td><td>2</td></tr>
+</table>
+
+<h3>📊 計算結果</h3>
+<div id="result"></div>
+
+</div>
+</div>
+
+<script>
+function v(id){ return Number(document.getElementById(id).value)||0; }
+
+function calc(){
+  const days=v("days"), weeks=v("weeks");
+
+  // 基本碎片
+  let frag={
+    shen:v("f_shen")+v("q_shen")+weeks*3,
+    jue:v("f_jue")+v("q_jue"),
+    zhen:v("f_zhen")+v("q_zhen"),
+    fan:v("f_fan")+v("q_fan")
+  };
+
+  let base={
+    shen:v("m_shen"),
+    jue:v("m_jue"),
+    zhen:v("m_zhen"),
+    fan:v("m_fan")
+  };
+
+  // 隊員打圖次數
+  let member={
+    shen:weeks*2,
+    jue:days,
+    zhen:days*2,
+    fan:days*3
+  };
+
+  // 隊員碎片加入
+  frag.jue += member.jue;
+  frag.zhen += member.zhen;
+  frag.fan += member.fan;
+
+  // 隨機碎片轉化
+  let totalRand=v("q_rand")+days*v("daily_rand");
+  let randRemain=totalRand%10;
+  let randTimes=Math.floor(totalRand/10);
+  let p=[["shen",v("p_shen")],["jue",v("p_jue")],["zhen",v("p_zhen")],["fan",v("p_fan")]];
+  let randConv={shen:0,jue:0,zhen:0,fan:0};
+  for(let i=0;i<randTimes;i++){
+    let r=Math.random(), acc=0;
+    for(let [k,val] of p){
+      acc+=val;
+      if(r<=acc){ randConv[k]++; break; }
+    }
+  }
+
+  // 合成 + 回補 (凡/珍/絕) 隨機隊長也加入碎片池
+  let leader={}, remain={}, leaderPure={};
+  ["shen","jue","zhen","fan"].forEach(t=>{
+    let mg=member[t];
+    let randT=randConv[t];
+    let totalFrag = (t==="shen"?frag[t]:frag[t]+randT);
+
+    if(t==="shen"){
+      leaderPure[t] = Math.floor(frag[t]/10);
+      remain[t] = frag[t]%10;
+      leader[t] = leaderPure[t] + randT; // 隨機隊長加上
+    } else {
+      let F = totalFrag;
+      let totalLeader = 0;
+      while(F>=10){
+        let made = Math.floor(F/10);
+        totalLeader += made;
+        F = F - made*10 + made;
+      }
+      leaderPure[t] = totalLeader;
+      leader[t] = totalLeader;
+      remain[t] = F;
+      leader[t] += randT; // 隨機隊長加入隊長總數
+    }
+    base[t] += leader[t];
+  });
+
+  // 收益
+  const R={shen:{lg:40,la:30,mg:20,ma:15},jue:{lg:20,la:16,mg:10,ma:8},zhen:{lg:10,la:8,mg:5,ma:4},fan:{lg:5,la:4,mg:3,ma:2}};
+  let sum={g:225,la:0,ma:0};
+
+  let html=`<table>
+<tr><th>品質</th><th>隊員</th><th>隨機轉化</th><th>碎片轉隊長</th><th>總打圖</th><th>剩餘碎片</th><th>通用</th><th>隊長屬性</th><th>隊員屬性</th></tr>`;
+
+  ["shen","jue","zhen","fan"].forEach(t=>{
+    let mg=member[t];
+    let randT=randConv[t];
+    let lp=leaderPure[t];
+    let lg=leader[t];
+    let g=lg*R[t].lg + mg*R[t].mg;
+    let la=lg*R[t].la;
+    let ma=mg*R[t].ma;
+    sum.g+=g; sum.la+=la; sum.ma+=ma;
+
+    html+=`<tr>
+<td>${t==="shen"?"神":t==="jue"?"絕":t==="zhen"?"珍":"凡"}</td>
+<td>${mg}</td>
+<td>${randT}</td>
+<td>${lp}</td>
+<td>${lg}</td>
+<td>${remain[t]}</td>
+<td>${g}</td>
+<td>${la}</td>
+<td>${ma}</td>
+</tr>`;
+  });
+
+  html+=`<tr style="font-weight:bold;background:#eee">
+<td>總計</td><td colspan="4">隨機剩餘碎片 ${randRemain}</td>
+<td>-</td>
+<td>${sum.g}</td>
+<td>${sum.la}</td>
+<td>${sum.ma}</td>
+</tr></table>`;
+
+  document.getElementById("result").innerHTML=html;
+}
+</script>
+
+</body>
+</html>

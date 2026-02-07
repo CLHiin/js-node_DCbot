@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { DataStore } = require('../常用/儲存檔');
+const { safeReply } = require('../常用/工具');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -13,11 +14,11 @@ module.exports = {
   async execute(interaction) {
     // 權限檢查
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return interaction.reply({ content: '❌ 你沒有權限使用此指令。', ephemeral: true });
+      return safeReply(interaction, { content: '❌ 你沒有權限使用此指令。', ephemeral: true });
     }
 
     const guildId = interaction.guildId;
-    const 目標 = interaction.options.getUser('目標'); // ⚠️ 這裡原本寫錯成 interaction.options.DataStore
+    const 目標 = interaction.options.getUser('目標');
     const 剩餘功德 = interaction.options.getNumber('剩餘功德');
     const 累積功德 = interaction.options.getNumber('累積功德');
     const 伺服器參拜功德 = interaction.options.getNumber('伺服器參拜功德');
@@ -75,6 +76,6 @@ module.exports = {
       );
     }
 
-    return interaction.reply({ embeds });
+    safeReply(interaction, { embeds });
   },
 };

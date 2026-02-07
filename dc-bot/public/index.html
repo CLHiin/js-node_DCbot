@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>DC Bot 管理面板</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>DC Bot 管理面板</h1>
+    <div id="auth-section">
+      <button id="open-other" style="margin-right: 5px;" onclick="window.open('TreasureMap.html', '_blank');">藏寶圖計算器</button>
+      <input type="password" id="password" placeholder="輸入密碼解鎖 JSON">
+      <button id="unlock-btn">解鎖 JSON</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="bot-status" style="margin-top:10px;font-weight:bold;">🤖 Bot 狀態：檢查中...</div>
+    <!-- 日誌區 -->
+    <div class="section" id="logs-section">
+      <h2>日誌</h2>
+      <div class="filters">
+        <input type="text" id="filter-server" placeholder="伺服器名稱/ID">
+        <input type="text" id="filter-user" placeholder="玩家名稱/ID">
+        <input type="text" id="filter-command" placeholder="指令">
+        <select id="filter-type">
+          <option value="">全部類型</option>
+          <option value="command">Command</option>
+          <option value="read">Read</option>
+          <option value="update">Update</option>
+        </select>
+        <label>從</label>
+        <input type="date" id="filter-start">
+        <label>到</label>
+        <input type="date" id="filter-end">
+        <button id="apply-filters">套用篩選</button>
+        <button id="refresh-logs">刷新日誌</button>
+      </div>
+
+      <div id="logs-table-container">
+        <table id="logs-table">
+          <thead>
+            <tr>
+              <th>時間</th>
+              <th>伺服器</th>
+              <th>玩家</th>
+              <th>指令</th>
+              <th>類型</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- JSON 區 -->
+    <div class="section" id="json-section">
+      <h2>JSON 資料</h2>
+      <textarea id="json-textarea" readonly placeholder="請先輸入密碼解鎖"></textarea>
+      <div style="margin-top:10px;">
+        <button id="download-json" disabled>下載 JSON</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

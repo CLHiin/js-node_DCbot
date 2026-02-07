@@ -1,7 +1,12 @@
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { createCanvas, loadImage } = require('@napi-rs/canvas');
+const { createCanvas, loadImage, registerFont } = require('canvas');
 const { DataStore } = require('../常用/儲存檔');
+const { safeReply } = require('../常用/工具');
 const path = require('path');
+const fs = require('fs');
+
+// 註冊中文字型
+registerFont(path.join(__dirname, '../fonts/NotoSansTC-Bold.ttf'), { family: 'NotoSansTC' });
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -24,9 +29,8 @@ module.exports = {
     const targetUserId = targetUser.id;
     const serverName = interaction.guild ? interaction.guild.name : '未知伺服器';
 
-    const user = DataStore.get(guildId, targetUserId);
+    const user = await DataStore.get(guildId, targetUserId);
 
-    // 如果看自己且有留言則更新
     if (targetUserId === interaction.user.id) {
       const inputPhrase = interaction.options.getString('留言');
       if (inputPhrase && inputPhrase.trim() !== '') {
@@ -74,13 +78,13 @@ module.exports = {
     ctx.restore();
 
     // CC 圖
-    const ccImg = await loadImage(path.join(__dirname, '../圖片/cc.png'));
+    const ccImg = await loadImage(fs.readFileSync(path.join(__dirname, '../圖片/cc.png')));
     const ccSize = 256;
     ctx.drawImage(ccImg, canvas.width - ccSize - 30, 30, ccSize, ccSize);
 
     // 伺服器名稱
     ctx.fillStyle = '#ffeaa7';
-    ctx.font = 'bold 22px "Microsoft JhengHei"';
+    ctx.font = '700 22px "NotoSansTC"';
     ctx.textAlign = 'right';
     ctx.shadowColor = 'rgba(0,0,0,0.7)';
     ctx.shadowBlur = 3;
@@ -96,7 +100,7 @@ module.exports = {
     ctx.fill();
 
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 28px "Microsoft JhengHei"';
+    ctx.font = '700 28px "NotoSansTC"';
     ctx.textAlign = 'left';
     ctx.shadowColor = 'rgba(0,0,0,0.6)';
     ctx.shadowBlur = 2;
@@ -112,10 +116,10 @@ module.exports = {
     ctx.fill();
 
     ctx.fillStyle = '#ffeaa7';
-    ctx.font = '20px "Microsoft JhengHei"';
+    ctx.font = '500 20px "NotoSansTC"';
     ctx.shadowColor = 'rgba(0,0,0,0.7)';
     ctx.shadowBlur = 3;
-    wrapText(ctx, phrase, phraseBoxX + 15, phraseBoxY + 30, phraseBoxW - 30, 26);
+    wrapText(ctx, phrase, phraseBoxX + 15, phraseBoxY + 30, phraseBoxW - 30, 26, phraseBoxH - 40);
 
     // 參拜資訊
     const infoBaseX = 40;
@@ -123,7 +127,7 @@ module.exports = {
     let infoY = avatarY + avatarSize + phraseBoxH;
 
     ctx.fillStyle = '#fff';
-    ctx.font = '22px "Microsoft JhengHei"';
+    ctx.font = '500 22px "NotoSansTC"';
     ctx.textAlign = 'left';
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
     ctx.shadowBlur = 1;
@@ -148,21 +152,26 @@ module.exports = {
 
     // 特殊物件
     const gap = 50;
-    let itemY = infoY + 20;
+    let itemY = infoY + 30;
     let itemBaseX = infoBaseX;
 
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 20px "Microsoft JhengHei"';
+    ctx.font = '700 20px "NotoSansTC"';
     ctx.fillText('特殊物件：', itemBaseX, itemY);
     itemY += 28;
 
-    const 特殊物件清單 = user.特殊物件 && typeof user.特殊物件 === 'object' && !Array.isArray(user.特殊物件)
-        ? Object.entries(user.特殊物件): Array.isArray(user.特殊物件) ? user.特殊物件.map(key => [key, 1]): [];
+    
+    const 特殊物件清單 = Object.entries(user.特殊物件);
     if (特殊物件清單.length === 0) ctx.fillText('無特殊物件', itemBaseX, itemY);
     else {
+      特殊物件清單.sort((a, b) => {
+        const len = str => [...str].reduce((acc, c) => c.charCodeAt(0) > 255 ? acc + 2 : acc + 1, 0);
+        return len(b[0]) - len(a[0]);
+      });
+      user.特殊物件 = Object.fromEntries(特殊物件清單);
       let colMaxWidth = 0;
       for (const [name, count] of 特殊物件清單) {
-        const text = `- ${name} x${count}`;
+        const text = `- ${name} x ${count}`;
         ctx.fillText(text, itemBaseX, itemY);
         colMaxWidth = Math.max(colMaxWidth, ctx.measureText(text).width);
         if ((itemY += 26) > canvasY - 26) {
@@ -175,34 +184,35 @@ module.exports = {
 
     // 常駐/限定獎池資訊
     const poolBaseX = infoBaseX + maxLeftTextWidth + gap;
-
     const drawPool = (title, poolData, poolBaseX) => {
       let poolY = avatarY + avatarSize + phraseBoxH;
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 20px "Microsoft JhengHei"';
+      ctx.font = '700 20px "NotoSansTC"';
       ctx.fillText(title, poolBaseX, poolY);
       poolY += 28;
 
-      ctx.font = '20px "Microsoft JhengHei"';
-      ctx.fillText(`總抽數：${poolData['總抽數'] || 0}`, poolBaseX, poolY);
+      ctx.font = '500 20px "NotoSansTC"';
+      ctx.fillText(`總計抽數：${poolData['總計抽數'] || 0}`, poolBaseX, poolY);
+      poolY += 26;
+      ctx.fillText(`該期抽數：${poolData['該期抽數'] || 0}`, poolBaseX, poolY);
       poolY += 26;
       ctx.fillText(`小保底：${poolData['小保'] || 0}`, poolBaseX, poolY);
       poolY += 26;
       ctx.fillText(`大保底：${poolData['大保'] || 0}`, poolBaseX, poolY);
       poolY += 26;
     };
-
     if (user['常駐獎池'] && typeof user['常駐獎池'] === 'object') drawPool('常駐獎池：', user['常駐獎池'], poolBaseX);
     if (user['限定獎池'] && typeof user['限定獎池'] === 'object') drawPool('限定獎池：', user['限定獎池'], poolBaseX + 200);
 
     // 輸出 PNG
-    const pngBuffer = await canvas.encode('png');
+    const pngBuffer = canvas.toBuffer('image/png');
     const attachment = new AttachmentBuilder(pngBuffer, { name: '個人名片.png' });
-    await interaction.reply({ files: [attachment] });
+    DataStore.update(guildId, targetUserId, user);
+    safeReply(interaction, { files: [attachment] });
   }
 };
 
-// 圓角矩形輔助函數
+// 圓角矩形輔助
 function roundRect(ctx, x, y, width, height, radius) {
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
@@ -217,20 +227,34 @@ function roundRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-// 自動換行輔助函數
-function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-  const characters = text.split('');
+// ✅ 改進後的自動換行（防止超出框）
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxHeight) {
+  const words = text.split('');
   let line = '';
-  for (let i = 0; i < characters.length; i++) {
-    const testLine = line + characters[i];
-    const metrics = ctx.measureText(testLine);
-    if (metrics.width > maxWidth && i > 0) {
-      ctx.fillText(line, x, y);
-      line = characters[i];
-      y += lineHeight;
+  let lines = [];
+  for (const char of words) {
+    const testLine = line + char;
+    if (ctx.measureText(testLine).width > maxWidth && line !== '') {
+      lines.push(line);
+      line = char;
     } else {
       line = testLine;
     }
   }
-  ctx.fillText(line, x, y);
+  if (line) lines.push(line);
+
+  const maxLines = Math.floor(maxHeight / lineHeight);
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    let lastLine = lines[lines.length - 1];
+    while (ctx.measureText(lastLine + '...').width > maxWidth && lastLine.length > 0) {
+      lastLine = lastLine.slice(0, -1);
+    }
+    lines[lines.length - 1] = lastLine + '...';
+  }
+
+  for (const l of lines) {
+    ctx.fillText(l, x, y);
+    y += lineHeight;
+  }
 }

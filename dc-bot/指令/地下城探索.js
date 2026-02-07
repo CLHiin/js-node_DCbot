@@ -9,6 +9,13 @@ const directions = {
     right: { dx: 1, dy: 0 },
 };
 
+function isSameMonth(dateA, dateB) {
+    if (!dateA || !dateB) return false;
+    const d1 = new Date(dateA);
+    const d2 = new Date(dateB);
+    return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth();
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('地下城探索')
@@ -21,22 +28,22 @@ module.exports = {
         const targetUser = interaction.options.getUser('玩家');
         const targetUserId = targetUser?.id || userId;
 
-        const serverData = DataStore.get(guildId, 'serverSettings');
+        const dungeonConfig = DataStore.get(guildId, 'serverSettings').地下城;
         const playerData = DataStore.get(guildId, targetUserId);
-
-        const dungeonConfig = serverData.地下城;
         const pd = playerData.地下城;
 
-        const now = Date.now();
-        const nowDate = new Date();
-        const today = nowDate.toDateString();
+        const nowTW = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
+        const todayTW = nowTW.toDateString();
+        
+        // ===== 先 deferReply 避免超時 =====
+        await interaction.deferReply();
 
         if (!dungeonConfig || !dungeonConfig.地圖大小 || !dungeonConfig.牆壁密度 || !dungeonConfig.鑽石數量) {
-            return interaction.reply({ content: '❌ 伺服器尚未設定完整地下城，無法探索', ephemeral: true });
+            return interaction.followUp({ content: '❌ 伺服器尚未設定完整地下城，無法探索' });
         }
 
-        // 初始生成地圖     nowDate.getDay(),0=週日
-        if ((!pd.地圖) || (nowDate.getDay() === 0 && pd.刷新日期 !== today)) { 
+        // ===== 每月刷新地圖 =====
+        if (!pd.地圖 || !isSameMonth(pd.刷新日期, nowTW)) {
             const mapStr = dungeonConfig.統一地圖 && dungeonConfig.地圖
                 ? dungeonConfig.地圖
                 : GenerateMaze(dungeonConfig.地圖大小, dungeonConfig.牆壁密度, dungeonConfig.鑽石數量);
@@ -45,7 +52,7 @@ module.exports = {
             pd.探索 = pd.可視 = mapRows.map(r => '0'.repeat(r.length)).join('\n');
             pd.完成 = false;
             pd.地圖 = mapStr;
-            pd.刷新日期 = today;
+            pd.刷新日期 = todayTW;
             pd.鑽石 = dungeonConfig.鑽石數量;
 
             const map = mapRows.map(r => r.split(''));
@@ -61,32 +68,34 @@ module.exports = {
             updateVisible(pd);
         }
 
-        // 管理員查看其他玩家時，直接渲染，不受步數/探索限制
+        // ===== 管理員查看其他玩家 =====
         if (targetUser) {
-            if (!pd.地圖) return interaction.reply({ content: '該玩家沒有啟用地下城', ephemeral: true });
             const member = await interaction.guild.members.fetch(interaction.user.id);
             const isAdmin = member.permissions.has('Administrator');
-            const files = [
-                { attachment: renderPlayerDungeonToImage(pd).toBuffer('image/png'), name: '探索進度.png' }
-            ];
-            if (isAdmin) { // 如果是管理員，額外附上完整地圖
-                files.push({ attachment: renderDungeonToImage(pd).toBuffer('image/png'), name: '完整地圖.png' });
-            }
+            // 公開 embed：探索進度
             const embed = createDungeonEmbed(pd, dungeonConfig, `${targetUser.username} 的地下城探索`);
-            return interaction.reply({ embeds: [embed], files, ephemeral: isAdmin});
+            const files = [{ attachment: renderPlayerDungeonToImage(pd).toBuffer('image/png'), name: '探索進度.png' }];
+            await interaction.followUp({ embeds: [embed], files });
+            // 管理員額外看到完整地圖
+            if (isAdmin) {
+                const adminFiles = [{ attachment: renderDungeonToImage(pd).toBuffer('image/png'), name: '完整地圖.png' }];
+                interaction.followUp({ content: '完整地圖（管理員專用）', files: adminFiles, ephemeral: true });
+            }
+            return;
         }
 
-        // 檢查玩家是否正在探索，且距離上次探索未超過 10 分鐘
+        const now = Date.now();
         if (pd.探索時間 && now - pd.探索時間 < 10 * 60 * 1000) {
-            return interaction.reply({ content: '❌ 你已經在探索地下城了！稍後再試', ephemeral: true });
+            const remain = Math.ceil((10 * 60 * 1000 - (now - pd.探索時間)) / 1000);
+            return interaction.followUp({ content: `❌ 你已經在探索地下城了！請 ${remain} 秒後再試` });
         }
-        // 每日步數刷新
-        if (pd.探索日期 !== today) pd.步數 = dungeonConfig.每日步數;
-        pd.探索日期 = today;
-        pd.探索時間 = now;
+
+        if (pd.探索日期 !== todayTW) pd.步數 = dungeonConfig.每日步數;
+        pd.探索日期 = todayTW;
+        pd.探索時間 = Date.now();
         DataStore.update(guildId, userId, playerData);
 
-        // 按鈕加前綴 "dungeon_" 避免跟其他互動衝突
+        // ===== 按鈕 =====
         const buttons = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('dungeon_up').setLabel('⬆️ 上').setStyle(ButtonStyle.Primary),
             new ButtonBuilder().setCustomId('dungeon_down').setLabel('⬇️ 下').setStyle(ButtonStyle.Primary),
@@ -94,51 +103,51 @@ module.exports = {
             new ButtonBuilder().setCustomId('dungeon_right').setLabel('➡️ 右').setStyle(ButtonStyle.Primary)
         );
 
-        const message = await interaction.reply({
+        const message = await interaction.followUp({
             embeds: [createDungeonEmbed(pd, dungeonConfig, '🗺️ 地下城探索開始')],
             files: [{ attachment: renderPlayerDungeonToImage(pd).toBuffer('image/png'), name: 'dungeon.png' }],
             components: [buttons],
             fetchReply: true
         });
 
+        // ===== 收集器 =====
         const collector = message.createMessageComponentCollector({
             filter: i => i.user.id === interaction.user.id && i.customId.startsWith('dungeon_'),
             time: 10 * 60 * 1000
         });
+
         collector.on('collect', async i => {
             await i.deferUpdate();
             try {
-                if (pd.完成) return i.followUp({ content: '✅ 已完成地下城，等待週日刷新', ephemeral: true });
+                const freshData = DataStore.get(guildId, userId);
+                const pd = freshData.地下城;
+
+                if (pd.完成) return i.followUp({ content: '✅ 已完成地下城，等待每月一日刷新', ephemeral: true });
                 if (pd.步數 <= 0) return i.followUp({ content: '❌ 步數用完，請等待明日刷新', ephemeral: true });
 
-                // 不用 deferUpdate()，因為 update() 本身就會自動回覆
                 const map = pd.地圖.split('\n').map(r => r.split(''));
                 const moved = movePlayer(pd, map, i.customId.replace('dungeon_', ''));
                 if (!moved) return i.followUp({ content: '❌ 不能走到牆壁或地圖外！', ephemeral: true });
 
                 pd.步數--;
-
-                // --- 檢查事件 ---
                 const explored = pd.探索.split('\n').map(r => r.split('').map(c => parseInt(c)));
                 const { x, y } = pd.座標;
-                const 獲得鑽石 = map[y][x] === 'D' && explored[y][x] === 0;
-                const 抵達終點 = map[y][x] === 'E' && !pd.完成;
-
-                if (獲得鑽石 || 抵達終點) {
-                    const 文本 = 獲得鑽石 ? '💎 你拿到一顆鑽石！' : '🏁 你到達終點，地下城完成！';
-                    const 原功德 = playerData.剩餘功德;
-                    const 獲取功德 = 獲得鑽石 ? dungeonConfig.鑽石功德 : dungeonConfig.終點功德;
-
-                    if (獲得鑽石) {explored[y][x] = 1; pd.鑽石--;}
+                const gotDiamond = map[y][x] === 'D' && explored[y][x] === 0;
+                
+                if (gotDiamond || map[y][x] === 'E') {
+                    const msg = gotDiamond ? '💎 你拿到一顆鑽石！' : '🏁 你到達終點，地下城完成！';
+                    const original = freshData.剩餘功德;
+                    const add = gotDiamond ? dungeonConfig.鑽石功德 : dungeonConfig.終點功德;
+                    if (gotDiamond) { explored[y][x] = 1; pd.鑽石--; }
                     else pd.完成 = true;
 
-                    playerData.剩餘功德 += 獲取功德;
-                    playerData.累積功德 += 獲取功德;
-
-                    await i.followUp({ content: `${文本}\n剩餘功德: ${原功德} -> ${playerData.剩餘功德}`, ephemeral: true });
+                    freshData.剩餘功德 += add;
+                    freshData.累積功德 += add;
+                    i.followUp({ content: `${msg}\n剩餘功德: ${original} -> ${freshData.剩餘功德}`,ephemeral: true });
                 }
+
                 pd.探索 = explored.map(r => r.join('')).join('\n');
-                DataStore.update(guildId, userId, playerData);
+                DataStore.update(guildId, userId, freshData);
 
                 await i.editReply({
                     embeds: [createDungeonEmbed(pd, dungeonConfig, '🗺️ 地下城探索中')],
@@ -148,39 +157,38 @@ module.exports = {
                 console.warn('⚠️ 互動錯誤:', err.message);
             }
         });
+
         collector.on('end', async () => {
+            const freshData = DataStore.get(guildId, userId);
+            if (freshData?.地下城) {
+                freshData.地下城.探索時間 = null;
+                DataStore.update(guildId, userId, freshData);
+            }
             pd.探索時間 = null;
             const embed = new EmbedBuilder()
                 .setTitle('探索結束 ⏰')
                 .setDescription('⚠️ 探索事件只保留十分鐘！')
                 .setColor(0x999999);
-            try {
-                await message.edit({ embeds: [embed], components: [] });
-            } catch (e) {
-                console.warn('訊息已刪除或無法編輯');
-            }
+            message.edit({ embeds: [embed], components: [] });
         });
-
     }
 };
 
-// Embed 生成函數
+// ===== 工具函數 =====
 function createDungeonEmbed(pd, dungeonConfig, title) {
     return new EmbedBuilder()
         .setTitle(title)
         .setColor(0x00AE86)
         .setDescription([
-            `🚶 剩餘步數：${pd.步數} (每日 ${dungeonConfig.每日步數} 步數)`,
-            `💎 剩餘鑽石：${pd.鑽石} (每顆 ${dungeonConfig.鑽石功德} 功德)`,
+            `🚶 剩餘步數：${pd.步數} (每日 ${dungeonConfig.每日步數})`,
+            `💎 剩餘鑽石：${pd.鑽石} (每顆 ${dungeonConfig.鑽石功德})`,
             `📏 地圖資訊：${dungeonConfig.地圖大小} x ${dungeonConfig.地圖大小} (密度 ${dungeonConfig.牆壁密度})`,
-            `🏁 終點獎勵：${dungeonConfig.終點功德 ?? 0} 功德`,
-            `💡 提示：每天刷新步數 / 每周刷新地下城`,
-            `⚠️ 注意：抵達終點後無法再次探索，需等待周日刷新`,
-            `🟥-玩家 / 🟫-牆壁 / 🟦-鑽石 / 🟪-已獲得鑽石 / 🟨-終點`
+            `🏁 終點獎勵：${dungeonConfig.終點功德 ?? 0}`,
+            `💡 提示：每天刷新步數 / 每月刷新地下城`,
+            `⚠️ 注意：抵達終點後無法再次探索，需等待下個月刷新`,
         ].join('\n'));
 }
 
-// 更新可視
 function updateVisible(player) {
     const map = player.地圖.split('\n').map(r => r.split(''));
     const visible = player.可視.split('\n').map(r => r.split('').map(c => parseInt(c)));
@@ -196,7 +204,6 @@ function updateVisible(player) {
     player.可視 = visible.map(r => r.join('')).join('\n');
 }
 
-// 移動
 function movePlayer(player, map, Id) {
     const move = directions[Id];
     if (!move) return false;
@@ -204,7 +211,6 @@ function movePlayer(player, map, Id) {
     const y = player.座標.y + move.dy;
     if (y < 0 || y >= map.length || x < 0 || x >= map[0].length) return false;
     if (map[y][x] === 'W') return false;
-
     player.座標.x = x;
     player.座標.y = y;
     updateVisible(player);

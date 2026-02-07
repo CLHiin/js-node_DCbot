@@ -79,8 +79,6 @@ function drawGacha(poolConfig, userData, count, 召神值模式 = false, 限定�
   }
 
   const 獎池Key = 限定模式 ? '限定獎池' : '常駐獎池';
-  if (!userData[獎池Key]) userData[獎池Key] = { 小保: 0, 大保: 0, 總抽數: 0 };
-
   const 大保底數字 = poolConfig.大保底 ?? 999; // 無設定就用大數
   const 所有結果 = [];
   const 獲得身分組 = new Set();
@@ -138,7 +136,8 @@ function drawGacha(poolConfig, userData, count, 召神值模式 = false, 限定�
     // 更新保底
     userData[獎池Key].小保 = (獲得?.稀有度 === 'SSR') ? 0 : (userData[獎池Key].小保 + 1);
     userData[獎池Key].大保 = (獲得?.UP) ? 0 : (userData[獎池Key].大保 + 1);
-    userData[獎池Key].總抽數 = (userData[獎池Key].總抽數 || 0) + 1;
+    userData[獎池Key].總計抽數 += 1;
+    userData[獎池Key].該期抽數 += 1;
   }
 
   userData.剩餘功德 = (userData.剩餘功德 || 0) - count * (poolConfig.消耗功德 || 0);

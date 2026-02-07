@@ -1,13 +1,20 @@
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
-const fetch = require('node-fetch'); // v2
+const fetch = require('node-fetch');
+const { gitSync } = require('../gitSync'); // 假設 gitSync 改成非同步 exec 版本
 
-const baseDir = path.join(__dirname, '..', '公用圖片');
+const baseDir = path.join(__dirname, '..', '公用檔案');
 
+/**
+ * 確保伺服器專屬資料夾存在
+ */
 async function ensureGuildFolder(guildId) {
   const guildFolder = path.join(baseDir, guildId);
-  if (!fs.existsSync(guildFolder)) {
-    fs.mkdirSync(guildFolder, { recursive: true });
+  try {
+    await fs.mkdir(guildFolder, { recursive: true });
+    gitSync(`Create folder for guild ${guildId}`); // 非阻塞
+  } catch (err) {
+    console.error('⚠️ 建立資料夾失敗:', err.message);
   }
   return guildFolder;
 }
@@ -17,9 +24,8 @@ async function ensureGuildFolder(guildId) {
  */
 async function saveFileFromUrl(guildId, fileUrl, originalName, oldFileName = null) {
   const folder = await ensureGuildFolder(guildId);
-  const existingFiles = fs.readdirSync(folder);
 
-  // 取得最大編號
+  const existingFiles = await fs.readdir(folder);
   let maxIndex = 0;
   existingFiles.forEach(file => {
     const match = file.match(/^(\d+)(\.[^.]+)?$/);
@@ -34,7 +40,6 @@ async function saveFileFromUrl(guildId, fileUrl, originalName, oldFileName = nul
   const newFileName = `${newIndex}${ext}`;
   const savePath = path.join(folder, newFileName);
 
-  // 備份舊圖（若有）
   if (oldFileName) {
     await moveFileToTrash(guildId, oldFileName);
   }
@@ -42,42 +47,59 @@ async function saveFileFromUrl(guildId, fileUrl, originalName, oldFileName = nul
   const res = await fetch(fileUrl);
   if (!res.ok) throw new Error(`下載失敗: ${res.status} ${res.statusText}`);
   const buffer = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(savePath, buffer);
+  await fs.writeFile(savePath, buffer);
+
+  gitSync(`Add or update file for guild ${guildId}: ${newFileName}`); // 非阻塞
 
   return newFileName;
 }
 
-
 /**
- * 將指定檔案搬移至已刪除資料夾，並加上時間戳記
+ * 將指定檔案搬移至已刪除資料夾
  */
-function moveFileToTrash(guildId, fileName) {
+async function moveFileToTrash(guildId, fileName) {
   const folder = path.join(baseDir, guildId);
   const trashFolder = path.join(folder, '已刪除');
-  if (!fs.existsSync(trashFolder)) {
-    fs.mkdirSync(trashFolder, { recursive: true });
+
+  try {
+    await fs.mkdir(trashFolder, { recursive: true });
+
+    const originalPath = path.join(folder, fileName);
+
+    // ▼ 建立日期格式：20251117_153502
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    const newFileName = `${yyyy}${mm}${dd}_${hh}${mi}${ss}_${fileName}`;
+    try {
+      await fs.rename(originalPath, path.join(trashFolder, newFileName));
+
+      // 非阻塞 Git 同步
+      gitSync(`Move ${fileName} to trash for guild ${guildId}`);
+    } catch (err) {
+      if (err.code !== 'ENOENT')
+        console.error('⚠️ 搬移檔案失敗:', err.message);
+    }
+
+  } catch (err) {
+    console.error('⚠️ 建立已刪除資料夾失敗:', err.message);
   }
-
-  const originalPath = path.join(folder, fileName);
-  if (!fs.existsSync(originalPath)) return;
-
-  const ext = path.extname(fileName);
-  const base = path.basename(fileName, ext);
-  const now = new Date();
-  const timestamp = now.toISOString().replace(/[-T:]/g, '').slice(0, 15); // YYYYMMDDHHmmss
-  const newFileName = `${timestamp}_${base}${ext}`;
-  const trashPath = path.join(trashFolder, newFileName);
-
-  fs.renameSync(originalPath, trashPath);
 }
 
 /**
  * 列出伺服器資料夾所有檔案
  */
-function listFiles(guildId) {
+async function listFiles(guildId) {
   const folder = path.join(baseDir, guildId);
-  if (!fs.existsSync(folder)) return [];
-  return fs.readdirSync(folder);
+  try {
+    return await fs.readdir(folder);
+  } catch {
+    return [];
+  }
 }
 
 /**

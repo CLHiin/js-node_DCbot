@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { DataStore } = require('../常用/儲存檔');
+const { safeReply } = require('../常用/工具');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -9,7 +10,7 @@ module.exports = {
   async execute(interaction) {
     const guildId = interaction.guildId;
     const userId = interaction.user.id;
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' });
     const memberObj = interaction.guild.members.cache.get(userId);
     const displayName = memberObj?.displayName || interaction.user.username;
 
@@ -21,7 +22,8 @@ module.exports = {
         .setTitle('該伺服器沒有設定參拜功德點')
         .setDescription('請伺服器管理員使用 `/功德調整` 指令來設定每日可獲得的功德點數。')
         .setColor(0xFF0000);
-      return interaction.reply({ embeds: [embed] });
+      ;
+      return safeReply(interaction, { embeds: [embed] });
     }
     let 參拜 = user.最後參拜日期 !== today;
     const 原剩餘功德 = user.剩餘功德;
@@ -43,6 +45,6 @@ module.exports = {
       ].join('\n'))
       .setFooter({ text: `最後參拜日: ${user.最後參拜日期}` })
       .setColor(0x00FF00);
-    await interaction.reply({ embeds: [embed] });
+    safeReply(interaction, { embeds: [embed] });
   },
 };

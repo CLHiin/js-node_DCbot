@@ -1,11 +1,11 @@
-const { createCanvas } = require('@napi-rs/canvas');
+const { createCanvas } = require('canvas');
 
 // 計算曼哈頓距離
 function distance(p1, p2) {
     return Math.abs(p1[0]-p2[0]) + Math.abs(p1[1]-p2[1]);
 }
 
-// BFS 檢查通路 (沒用到)
+// BFS 檢查通路
 function isReachable(maze, endPos = null) {
     const n = maze.length;
     const visited = Array.from({length:n}, () => Array(n).fill(false));
