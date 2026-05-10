@@ -1,0 +1,63 @@
+# js-node_DCbot
+用node套件運行DC機器人
+
+## 機器人說明
+1. 簡易操作:
+- 可在 [.env] 與 [指令.js] 中設定指令全域或者部屬特定伺服器
+- [指令.js] 會根據 [dc-bot/指令] 資料夾中有的js檔自動新增指令，無須額外紀錄當前指令
+2. 存檔功能:
+- 具存檔功能，會儲存玩家資料到[常用/資料庫.json]
+- 額外檔案會放到[dc-bot/公用檔案]區，刪除也會有紀錄
+- 存檔會根據伺服器不同而分開存檔
+- 可以通過連接 github ，自動將資料同步上去
+例如使用 Railway / Render 來部屬
+![alt text](說明圖片/image10.png)
+3. 娛樂性:
+- 具有簽到功能/商店功能/抽獎功能/個人檔案功能/地下城功能
+- 各類指令標準多功能，可以給身分組，也可以給檔案，或者自訂特殊物件標籤紀錄
+
+![alt text](說明圖片/image1.png)
+![alt text](說明圖片/image2.png)
+
+## 展示畫面
+![alt text](說明圖片/image3.png)
+![alt text](說明圖片/image4.png)
+![alt text](說明圖片/image5.png)
+![alt text](說明圖片/image6.png)
+![alt text](說明圖片/image7.png)
+![alt text](說明圖片/image11.png)
+
+## 1.前置安裝
+1. 安裝 node.js
+2. 安裝node 使用指令:
+```
+npm install node
+npm install discord.js dotenv
+```
+根據情況可能會有更多需要安裝的
+
+## 2.DC準備
+1. 前往這裡創建一個DC機器人: https://discord.com/developers/applications
+2. 邀請你的bot進入伺服器，在 OAuth2 那創建邀請連結
+3. 前往左側BOT欄位找到、創建一個token
+![alt text](說明圖片/image8.png)
+4. 取得機器人token、ID、伺服器ID(記得去開啟開發者模式，才方便右鍵找ID)
+5. 將對應的金鑰/ID放入 .env 檔中
+![alt text](說明圖片/image9.png)
+
+## 3.運行bot
+1. 前往dc-bot資料夾，開啟終端執行 node 指令
+```
+node 指令
+node index
+```
+2. 確認指令跟機器人正常運行，即可前往伺服器使用DC機器人
+
+
+## 4. 常駐環境
+1. 建議將專案分為 main - service - railway 三個
+2. 由於同步使用需要 .git，所以...
+- 對 Render 連結 github 後有.git的網站，使用 service 分支，這樣可以將每日更新的提交固定在分支區塊
+- 對 Railway 連接 github 後沒有.git，使用 railway 分支(建議只留 Dockerfile & node_modules 相關) ，並在常駐平台自訂 Dockerfile 來執行
+注意: 由於是用.git提交，所以開啟多個git提交分支，將可能會出錯而無法提交，請自行斟酌。
+3. 環境變數: 需要修改 [.env] [Dockerfile] 的token和網址等，當然有些也可以寫在平台的環境變數中
