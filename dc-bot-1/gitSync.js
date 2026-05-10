@@ -5,8 +5,8 @@ const path = require('path');
 
 const branch = 'service';
 const files = ['常用/資料庫.json', '公用檔案/'];
-const url = `https://x-access-token:${process.env.GITHUB_TOKEN}@github.com/CLHiin/js-node_DCbot_private.git`;
-const repoLink = 'https://github.com/CLHiin/js-node_DCbot_private/commit';
+const url = `https://x-access-token:${process.env.GITHUB_TOKEN}@github.com/${process.env.GITHUB_URL}`;
+const repoLink = `https://github.com/${process.env.GITHUB_URL}/commit`;
 
 const run = (cmd, cb) => exec(cmd.replace(/\n\s+/g, ' '), { encoding: 'utf8' }, cb);
 const logLink = hash => `🔗 ${repoLink}/${hash.trim()}`;
