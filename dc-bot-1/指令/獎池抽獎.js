@@ -51,10 +51,10 @@ module.exports = {
     if (!poolSettings.消耗功德){
       return safeReply(interaction, { content: `❌ ${poolType}獎池未設定抽獎所需功德`, ephemeral: true });
     }
-
-
-    const resultEmbed = new EmbedBuilder().setTitle(抽數 ? `🎉 ${displayName} 抽卡結果 (${抽數} 抽)` : `🎯 ${displayName} 的抽卡狀態`).setColor(0xFFD700);
-    let 所有結果 = [], 獲得身分組 = [], 獲得檔案 = [], 本次特殊物件 = {};
+      
+    const resultEmbed = new EmbedBuilder().setColor(0xFFD700)
+      .setTitle(抽數 ? `🎉 ${displayName + poolType} 獎池抽卡結果 (${抽數} 抽)` : `🎯 ${displayName + poolType} 獎池抽卡狀態`);
+    let 獲得身分組 = [], 獲得檔案 = [], 本次特殊物件 = {};
     const 所需功德 = 抽數 * poolSettings.消耗功德;
     if (抽數 > 0) {
       if (!是自己)
@@ -66,20 +66,19 @@ module.exports = {
 
       // --- 抽獎 ---
       const result = drawGacha(poolSettings, playerData, 抽數, poolSettings.召神值, poolType == '限定');
-      所有結果 = result.results;
       獲得身分組 = result.roles;
       獲得檔案 = result.files;
-      本次特殊物件 = result.specials;
+      // 本次特殊物件 = result.specials;
       DataStore.update(guildId, 目標Id, playerData);
       // 抽獎結果 embed
-      resultEmbed.setDescription(所有結果.map(r => `${RARITY[r.稀有度]} ${r.名稱}`).join('\n') || '無')
-      .addFields({
-        name: '🎁 總計獎品',
-        value:
-          `身分組: ${[...獲得身分組].join('、') || '無'}\n` +
-          `附加檔案: ${[...獲得檔案].map(f => `<${f}>`).join('、') || '無'}\n` +
-          `特殊物件: ${Object.entries(本次特殊物件).map(([k,v]) => `${k}×${v}`).join('、') || '無'}`
-      });
+      resultEmbed.setDescription(result.results.map(r => `${RARITY[r.稀有度]} ${r.名稱}`).join('\n') || '無');
+      // .addFields({
+      //   name: '🎁 總計獎品',
+      //   value:
+      //     `身分組: ${[...獲得身分組].join('、') || '無'}\n` +
+      //     `附加檔案: ${[...獲得檔案].map(f => `<${f}>`).join('、') || '無'}\n` +
+      //     `特殊物件: ${Object.entries(本次特殊物件).map(([k,v]) => `${k}×${v}`).join('、') || '無'}`
+      // });
     }
 
     // 詳細的獎池狀態 embed
@@ -87,17 +86,15 @@ module.exports = {
       .setTitle(`📊 ${poolType}獎池狀態`)
       .setColor(0x3399FF)
       .setDescription(
-        `獎池功德：${poolSettings.消耗功德 ?? 1} / 抽\n` +
-        `剩餘功德：${playerData.剩餘功德}\n` +
-        `總計抽數：${playerData[poolType + '獎池'].總計抽數}\n` +
-        `該期抽數：${playerData[poolType + '獎池'].該期抽數}\n` +
+        `功德：${poolSettings.消耗功德 ?? 0} / 抽 (剩餘: ${playerData.剩餘功德})\n` +
+        `該期/總計抽數：${playerData[poolType + '獎池'].該期抽數} / ${playerData[poolType + '獎池'].總計抽數}\n` +
         `小保底：${playerData[poolType + '獎池'].小保}（起點：${poolSettings.小保底起始 ?? '無'}，終點：${poolSettings.小保底終點 ?? '無'}）\n` +
-        `大保底：${playerData[poolType + '獎池'].大保} / ${poolSettings.大保底 || '無'}（${poolSettings.召神值 ? '召神值模式' : '無召神值模式'}）\n` +
+        `大保底：${playerData[poolType + '獎池'].大保} / ${poolSettings.大保底 || '無'}（${poolSettings.召神值 ? '召神值模式' : '基本保底模式'}）\n` +
         `下一抽SSR概率：${calcNextSSRRate(poolSettings, playerData, poolType == "限定").toFixed(2)}%\n` +
         `獎池狀態：${poolSettings.開放 ? '✅ 開放' : '❌ 關閉'}`
       );
 
-      // 3️⃣ 當前獎池 embed
+    // 3️⃣ 當前獎池 embed
     const 獎池列 = ['SSR','SR','R'].map(r => {
       return `${RARITY[r]} ${poolSettings.獎品清單?.filter(i => i.稀有度 === r).map(i => formatPrizeName(i)).join('、') || '無'}`;
     }).join('\n');

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>搶劫大作戰 - 房間</title>
+<link rel="stylesheet" href="room.css">
+<link rel="stylesheet" href="game.css">
+</head>
+<body>
+
+<div id="leftPanel">
+
+  <!-- 玩家資訊 -->
+  <div class="card" id="playerInfo">
+    <div class="section-title">玩家資訊</div>
+    <div class="info-row"><span>👤 名稱：</span><span id="myName">未設定</span></div>
+    <div class="info-row"><span>🎭 身份：</span><span id="myRole">觀戰</span></div>
+    <div class="info-row">
+      <span>改名：</span>
+      <input id="nickname" placeholder="輸入名稱">
+      <button onclick="setName()">確認</button>
+    </div>
+  </div>
+
+  <!-- 房主設定 -->
+  <div class="card" id="hostSettings">
+    <div class="section-title">⚙ 房主設定參數 / 踢人</div>
+    
+    <!-- 基本回合/行動設定 -->
+    <div class="settings-group">
+      回合數：<input type="number" id="set_rounds" value="30">
+      行動次數：<input type="number" id="set_actionLimit" value="3"><br>
+      理財 %：<input type="number" id="set_investPercent" value="5">
+      最低：<input type="number" id="set_investMin" value="500">
+      單日最高：<input type="number" id="set_investMax" value="1000"><br>
+      貪污 %：<input type="number" id="set_corruptPercent" value="10">
+      最低：<input type="number" id="set_corruptMin" value="1000"><br>
+      搶劫 %：<input type="number" id="set_robPercent" value="10">
+      最低：<input type="number" id="set_robMin" value="800"><br>
+      探查 +：<input type="number" id="set_scoutBonus" value="0.5" step="0.1"><br>
+      地洞：完成 <input type="number" id="set_tunnelNeed" value="10">
+      最大 <input type="number" id="set_tunnelMax" value="2"><br>
+      金庫值：<input type="number" id="set_bankInit" value="5000">
+      警察分紅 %：<input type="number" id="set_policeBonus" value="20">
+    </div>
+
+    <!-- 銀行設定 -->
+    <div class="settings-group">
+      <strong>銀行行動花費 & 單日次數</strong><br>
+      保全：<input type="number" id="set_bankSec" value="50">
+      監控：<input type="number" id="set_bankCam" value="100">
+      理財：<input type="number" id="set_bankInvest" value="0"><br>
+      次數：<input type="number" id="set_bankSecLimit" value="-1">
+      次數：<input type="number" id="set_bankCamLimit" value="-1">
+      次數：<input type="number" id="set_bankInvestLimit" value="-1">
+    </div>
+
+    <!-- 警察設定 -->
+    <div class="settings-group">
+      <strong>警察行動花費 & 單日次數</strong><br>
+      防衛：<input type="number" id="set_policeDef" value="0">
+      巡邏：<input type="number" id="set_policePatrol" value="0">
+      貪污：<input type="number" id="set_policeCorrupt" value="50"><br>
+      次數：<input type="number" id="set_policeDefLimit" value="-1">
+      次數：<input type="number" id="set_policePatrolLimit" value="-1">
+      次數：<input type="number" id="set_policeCorruptLimit" value="1">
+    </div>
+    <!-- 搶匪設定 -->
+    <div class="settings-group">
+      <strong>搶匪行動花費 & 單日次數</strong><br>
+      搶劫：<input type="number" id="set_robRob" value="0">
+      地搶：<input type="number" id="set_robGround" value="0">
+      探查：<input type="number" id="set_robScout" value="0">
+      挖洞：<input type="number" id="set_robDig" value="10"><br>
+      次數：<input type="number" id="set_robRobLimit" value="-1">
+      次數：<input type="number" id="set_robGroundLimit" value="-1">
+      次數：<input type="number" id="set_robScoutLimit" value="-1">
+      次數：<input type="number" id="set_robDigLimit" value="-1">
+    </div>
+
+    <button id="updateSettingsBtn" onclick="updateSettings()">更新設定</button>
+    <button id="startBtn" onclick="startGame()" disabled>開始遊戲</button>
+
+    <div class="section-title">踢人列表</div>
+    <div id="kickList" class="kick-list">尚無玩家</div>
+  </div>
+</div>
+
+<!-- 右側 -->
+<div id="mainPanel">
+
+  <!-- 房間區 -->
+  <div class="card" id="roomCard">
+    <h2 id="roomTitle">未加入房間</h2>
+    <div id="roomControls">
+      <button onclick="createRoom()">建立房間</button>
+      房號：<input id="roomIdInput">
+      <button onclick="joinRoom()">加入房間</button>
+      <button onclick="leaveRoom()">離開房間</button>
+      <button onclick="toggleSettings()">顯示/隱藏房主設定</button>
+    </div>
+    <div class="role-box">🏦 銀行：<span id="bankSeat">等待玩家</span>
+      <button id="btnBank" onclick="choose('bank')">加入</button>
+    </div>
+    <div class="role-box">🚔 警察：<span id="policeSeat">等待玩家</span>
+      <button id="btnPolice" onclick="choose('police')">加入</button>
+    </div>
+    <div class="role-box">🔫 搶匪：<span id="robberSeat">等待玩家</span>
+      <button id="btnRobber" onclick="choose('robber')">加入</button>
+    </div>
+    <div class="role-box">👁 觀戰：<span id="spectatorList">0</span>
+      <button onclick="choose('spectator')">觀戰</button>
+    </div>
+  </div>
+  <!-- 遊戲區 -->
+  <div id="gameCard" class="card" style="display:none;">
+    <div id="gameHeader">
+      🏦 <span id="gameBank">-</span>
+      <span class="vs">VS</span>
+      🚔 <span id="gamePolice">-</span>
+      <span class="vs">VS</span>
+      🔫 <span id="gameRobber">-</span>
+    </div>
+
+    <div id="gameContentGrid">
+      <!-- 左側操作區 -->
+      <div id="leftGameColumn">
+        <div class="dayTag">第 <span id="currentDay">1</span> 天</div>
+        <div id="campScores">
+          <div class="campRow" id="bankScore"></div>
+          <div class="campRow" id="policeScore"></div>
+          <div class="campRow" id="robberScore"></div>
+        </div>
+        <div id="operateLeft">
+          <div id="actionContainer">
+            <div class="actionLeft"><span>行動：</span><div id="actionButtons" class="btnGroup"></div></div>
+            <div class="actionRight"><span>序列：</span><div id="actionQueue" class="queueGroup"></div></div>
+          </div>
+          <div class="readyRow">
+            <button id="readyBtn">準備</button>
+            <button id="cancelReadyBtn" style="display:none;">取消準備</button>
+            <span class="waitingText">等待：銀行/警察/搶匪</span>
+          </div>
+        </div>
+        <div id="commSection">
+          <div class="panel-title">銀行 / 警察通信</div>
+          <div id="commBox"></div>
+          <div class="commInputRow">
+            <input type="text" id="commInput" disabled>
+            <button id="commSend" disabled>送出</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右側公告 -->
+      <div id="announceColumn">
+        <div id="announceHeader">
+          <button id="prevDay">◀</button>
+          <span id="announceTitle">第 1 天公告</span>
+          <button id="nextDay">▶</button>
+        </div>
+        <div id="announceBox">目前尚無公告</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="room.js"></script>
+<script src="game.js"></script>
+
+</body>
+</html>

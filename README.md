@@ -52,3 +52,12 @@ node 指令
 node index
 ```
 2. 確認指令跟機器人正常運行，即可前往伺服器使用DC機器人
+
+
+## 4. 常駐環境
+1. 建議將專案分為 main - service - railway 三個
+2. 由於同步使用需要 .git，所以...
+- 對 Render 連結 github 後有.git的網站，使用 service 分支，這樣可以將每日更新的提交固定在分支區塊
+- 對 Railway 連接 github 後沒有.git，使用 railway 分支(建議只留 Dockerfile & node_modules 相關) ，並在常駐平台自訂 Dockerfile 來執行
+注意: 由於是用.git提交，所以開啟多個git提交分支，將可能會出錯而無法提交，請自行斟酌。
+3. 環境變數: 需要修改 [.env] [Dockerfile] 的token和網址等，當然有些也可以寫在平台的環境變數中

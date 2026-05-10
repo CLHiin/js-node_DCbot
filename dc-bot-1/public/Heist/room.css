@@ -1,0 +1,133 @@
+/* ===== 全局樣式 ===== */
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial;
+  color: white;
+  display: flex;
+  height: 100vh;
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+}
+
+/* ===== 左右面板 ===== */
+#leftPanel {
+  width: 35%;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow-y: auto;
+}
+#mainPanel {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ===== 卡片區塊 ===== */
+.card {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 10px;
+  backdrop-filter: blur(5px);
+}
+
+/* ===== 按鈕 ===== */
+button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: #ffd700;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+button.small {
+  padding: 3px 6px;
+  font-size: 12px;
+}
+
+/* ===== 輸入框 ===== */
+input {
+  padding: 4px 6px;
+  border-radius: 5px;
+  border: none;
+  margin: 2px 4px;
+  font-size: 14px;
+}
+
+/* ===== 角色座位區 ===== */
+.role-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+/* ===== 分區標題 ===== */
+.section-title {
+  font-weight: bold;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  padding-bottom: 4px;
+}
+
+/* ===== 設定群組 ===== */
+.settings-group input {
+  width: 60px;
+  margin-right: 6px;
+}
+
+/* ===== 玩家資訊 ===== */
+#playerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#playerInfo .info-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#playerInfo input {
+  flex: 1;
+  max-width: 200px;
+}
+#playerInfo button {
+  flex-shrink: 0;
+}
+
+/* ===== 踢人列表 ===== */
+.kick-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ===== 左側面板鎖定 ===== */
+#leftPanel.locked {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* ===== 額外樣式 ===== */
+.hostSettingView {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.hidden {
+  display: none !important;
+}

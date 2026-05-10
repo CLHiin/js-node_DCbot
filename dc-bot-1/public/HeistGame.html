@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>搶劫大作戰 - 遊戲</title>
+<style>
+body { margin:0; font-family:"Segoe UI",Arial; color:white; display:flex; height:100vh; background:linear-gradient(135deg,#1e3c72,#2a5298); }
+#leftPanel { width:25%; background: rgba(0,0,0,0.5); padding:10px; display:flex; flex-direction:column; gap:15px; overflow-y:auto; }
+#rightPanel { width:25%; background: rgba(0,0,0,0.5); padding:10px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; }
+#centerPanel { flex:1; padding:20px; display:flex; flex-direction:column; gap:10px; }
+.card { background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; backdrop-filter: blur(5px); }
+.section-title { font-weight:bold; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:4px; }
+button { padding:6px 12px; border-radius:6px; border:none; cursor:pointer; background:#ffd700; font-weight:bold; margin:3px; }
+button:disabled { opacity:0.5; cursor:not-allowed; }
+#actionButtons button { margin-right:5px; }
+#log, #roleLog { height:150px; overflow-y:auto; background: rgba(0,0,0,0.2); padding:5px; border-radius:6px; margin-top:5px; }
+#readyStatus { margin-top:5px; }
+</style>
+</head>
+<body>
+
+<div id="leftPanel">
+  <div class="card">
+    <div class="section-title">房間資訊</div>
+    房號：<span id="roomId">---</span><br>
+    玩家：<span id="playerName">---</span><br>
+    角色：<span id="myRole">---</span><br>
+    回合：<span id="roundCount">0</span>
+  </div>
+
+  <div class="card">
+    <div class="section-title">廣播</div>
+    <div id="log"></div>
+  </div>
+
+  <div class="card" id="teamChatCard">
+    <div class="section-title">陣營通信</div>
+    <div id="roleLog"></div>
+    <input id="teamMsg" placeholder="輸入訊息" style="width:80%">
+    <button id="sendTeamMsg">發送</button>
+  </div>
+</div>
+
+<div id="centerPanel">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between;">
+      <div>陣營分數：<span id="score">0</span></div>
+      <div>累計消耗：<span id="spent">0</span></div>
+    </div>
+    <div id="actionButtons" style="margin-top:10px;"></div>
+    <div class="section-title">行動記錄</div>
+    <div id="actionLog"></div>
+    <button id="submitAction">決定行動</button>
+    <div id="readyStatus">準備完成：0/0</div>
+  </div>
+</div>
+
+<div id="rightPanel">
+  <div class="card">
+    <div class="section-title">遊戲設定</div>
+    <div id="gameSettings">載入中...</div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+
+// 基本資料
+let myRole = sessionStorage.getItem('myRole') || 'spectator';
+let playerName = sessionStorage.getItem('myName') || '玩家';
+let roomId = sessionStorage.getItem('roomId') || '---';
+document.getElementById('playerName').innerText = playerName;
+document.getElementById('myRole').innerText = myRole;
+document.getElementById('roomId').innerText = roomId;
+document.getElementById('teamChatCard').style.display = (myRole==='robber' || myRole==='spectator') ? 'none':'block';
+
+let roundCount = 0;
+let score = 0;
+let spent = 0;
+let actions=[];
+
+// 顯示遊戲設定
+function displaySettings(s){
+  const container = document.getElementById('gameSettings');
+  container.innerHTML = `
+    回合數：${s.totalRounds}<br>
+    理財%：${s.invest.percent} 最低:${s.invest.min} 上限:${s.invest.max}<br>
+    貪污%：${s.corrupt.percent} 最低:${s.corrupt.min}<br>
+    搶劫%：${s.rob.percent} 最低:${s.rob.min}<br>
+    探查次日+：${s.scoutBonus}<br>
+    地洞完成：${s.tunnelNeed}<br>
+    地洞最大：${s.tunnelMax}
+  `;
+}
+
+// 生成行動按鈕
+function renderActionButtons(){
+  const container = document.getElementById('actionButtons');
+  container.innerHTML='';
+  if(myRole==='bank'){
+    ['保全','監控','理財'].forEach(act=>{
+      const btn=document.createElement('button');
+      btn.textContent = act;
+      btn.onclick = ()=>addAction(act);
+      container.appendChild(btn);
+    });
+  } else if(myRole==='police'){
+    ['防衛','巡邏','貪污'].forEach(act=>{
+      const btn=document.createElement('button');
+      btn.textContent = act;
+      btn.onclick = ()=>addAction(act);
+      container.appendChild(btn);
+    });
+  } else if(myRole==='robber'){
+    ['搶劫','地搶','探查','挖洞'].forEach(act=>{
+      const btn=document.createElement('button');
+      btn.textContent = act;
+      btn.onclick = ()=>addAction(act);
+      container.appendChild(btn);
+    });
+  }
+}
+
+// 行動紀錄
+function addAction(act){
+  actions.push(act);
+  const log = document.getElementById('actionLog');
+  log.innerHTML += act+'<br>';
+}
+
+// 送出行動
+document.getElementById('submitAction').onclick = ()=>{
+  if(actions.length===0) return alert('請至少選一個行動');
+  socket.emit('actionSubmit', {actions});
+  actions=[];
+  document.getElementById('actionLog').innerHTML='';
+};
+
+// 陣營通信
+document.getElementById('sendTeamMsg').onclick = ()=>{
+  const msg = document.getElementById('teamMsg').value.trim();
+  if(!msg) return;
+  socket.emit('chatMessage',{type:'faction',msg,faction:myRole});
+  document.getElementById('teamMsg').value='';
+};
+
+// ===== Socket 事件 =====
+socket.on('gameStart', data=>{
+  sessionStorage.setItem('gameSettings', JSON.stringify(data));
+  sessionStorage.setItem('myRole', myRole);
+  sessionStorage.setItem('roomId', data.roomId || '---');
+  document.getElementById('roomId').innerText = data.roomId || '---';
+  displaySettings(data);
+  renderActionButtons();
+});
+
+socket.on('gameStateUpdate', data=>{
+  if(!data) return;
+  score = myRole==='bank'?data.bankTreasury:myRole==='police'?data.policeShare:myRole==='robber'?data.robberScore:0;
+  spent = data.spent || 0;
+  roundCount = data.currentRound || 0;
+  document.getElementById('roundCount').innerText = roundCount;
+  document.getElementById('score').innerText = score;
+  document.getElementById('spent').innerText = spent;
+});
+
+socket.on('roundUpdate', data=>{
+  roundCount = data.round;
+  score = data.score[myRole] || 0;
+  spent = data.spent;
+  document.getElementById('roundCount').innerText = roundCount;
+  document.getElementById('score').innerText = score;
+  document.getElementById('spent').innerText = spent;
+  document.getElementById('readyStatus').innerText = `準備完成：${data.ready}/${data.total}`;
+});
+
+socket.on('chatMessage', data=>{
+  const log = document.getElementById('log');
+  const prefix = data.type==='public' ? '[公共]' : '[陣營]';
+  log.innerHTML += `${prefix} ${data.sender}: ${data.msg}<br>`;
+  log.scrollTop = log.scrollHeight;
+});
+
+socket.on('teamBroadcast', msg=>{
+  const log = document.getElementById('roleLog');
+  log.innerHTML += msg+'<br>';
+  log.scrollTop = log.scrollHeight;
+});
+
+// 觀戰者可看到三方行動
+socket.on('viewActions', data=>{
+  if(myRole==='spectator'){
+    const log = document.getElementById('actionLog');
+    log.innerHTML = '';
+    ['bank','police','robber'].forEach(r=>{
+      const acts = data[r] || [];
+      log.innerHTML += `${r}: ${acts.join(', ')}<br>`;
+    });
+  }
+});
+</script>
+</body>
+</html>

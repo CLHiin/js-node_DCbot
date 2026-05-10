@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>搶劫大作戰 - 房間</title>
+<style>
+body {
+  margin:0;
+  font-family:"Segoe UI",Arial;
+  color:white;
+  display:flex;
+  height:100vh;
+  background:linear-gradient(135deg,#1e3c72,#2a5298);
+}
+#leftPanel {
+  width:35%;
+  background: rgba(0,0,0,0.5);
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:15px;
+  overflow-y:auto;
+}
+#mainPanel {
+  flex:1;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+.card {
+  background: rgba(255,255,255,0.1);
+  padding:20px;
+  border-radius:10px;
+  backdrop-filter: blur(5px);
+}
+button {
+  padding:6px 12px;
+  border-radius:6px;
+  border:none;
+  cursor:pointer;
+  background:#ffd700;
+  font-weight:bold;
+  margin-bottom:6px;
+}
+button:disabled {
+  opacity:0.5;
+  cursor:not-allowed;
+}
+input {
+  padding:5px;
+  border-radius:5px;
+  border:none;
+  margin:3px;
+  width:60px;
+}
+.role-box {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+  padding:8px;
+  background: rgba(0,0,0,0.3);
+  border-radius:6px;
+}
+.section-title {
+  font-weight:bold;
+  margin-bottom:6px;
+  border-bottom:1px solid rgba(255,255,255,0.3);
+  padding-bottom:4px;
+}
+</style>
+</head>
+<body>
+
+<div id="leftPanel">
+  <div class="card" id="playerInfo">
+    <div class="section-title">玩家資訊</div>
+    👤 名稱：<span id="myName">未設定</span><br>
+    🎭 身份：<span id="myRole">觀戰</span><br>
+    改名：<input id="nickname" style="width:150px;" placeholder="輸入名稱">
+    <button onclick="setName()">確認</button>
+  </div>
+
+  <div class="card" id="hostSettings" style="display:none;">
+    <div class="section-title">⚙ 房主設定 / 踢人</div>
+    <div style="margin-bottom:8px;">
+      <strong>基本參數</strong><br>
+      回合數：<input type="number" id="set_rounds" value="30"><br>
+      理財 %：<input type="number" id="set_investPercent" value="5">
+      最低：<input type="number" id="set_investMin" value="500">
+      單日最高：<input type="number" id="set_investMax" value="1000"><br>
+      貪污 %：<input type="number" id="set_corruptPercent" value="10"> 最低：<input type="number" id="set_corruptMin" value="1000"><br>
+      搶劫 %：<input type="number" id="set_robPercent" value="10"> 最低：<input type="number" id="set_robMin" value="800"><br>
+      探查次日 +：<input type="number" id="set_scoutBonus" value="0.5" step="0.1"><br>
+      地洞完成進度：<input type="number" id="set_tunnelNeed" value="10"><br>
+      地洞最大數量：<input type="number" id="set_tunnelMax" value="2">
+    </div>
+
+    <div style="margin-bottom:8px;">
+      <strong>銀行行動花費</strong><br>
+      保全：<input type="number" id="set_bankSec" value="50">
+      監控：<input type="number" id="set_bankCam" value="100">
+      理財：<input type="number" id="set_bankInvest" value="0"><br>
+
+      <strong>警察行動花費</strong><br>
+      防衛：<input type="number" id="set_policeDef" value="0">
+      巡邏：<input type="number" id="set_policePatrol" value="0">
+      貪污：<input type="number" id="set_policeCorrupt" value="50"><br>
+
+      <strong>搶匪行動花費</strong><br>
+      搶劫：<input type="number" id="set_robRob" value="0">
+      地搶：<input type="number" id="set_robGround" value="0">
+      探查：<input type="number" id="set_robScout" value="0">
+      挖洞：<input type="number" id="set_robDig" value="10"><br>
+    </div>
+
+    <button id="updateSettingsBtn" onclick="updateSettings()">更新設定</button>
+    <button id="startBtn" onclick="startGame()" disabled>開始遊戲</button>
+
+    <div class="section-title" style="margin-top:10px;">踢人列表</div>
+    <div id="kickList">尚無玩家</div>
+  </div>
+</div>
+
+<div id="mainPanel">
+  <div class="card" id="roomCard">
+    <h2 id="roomTitle">未加入房間</h2>
+
+    <div id="roomControls" style="margin-bottom:15px;">
+      <button onclick="createRoom()">建立房間</button>
+      房號：<input id="roomIdInput">
+      <button onclick="joinRoom()">加入房間</button>
+      <button onclick="leaveRoom()">離開房間</button>
+      <button onclick="toggleSettings()">顯示/隱藏房主設定</button>
+    </div>
+
+    <div class="role-box">
+      🏦 銀行：<span id="bankSeat">等待玩家</span>
+      <button id="btnBank" onclick="choose('bank')">加入</button>
+    </div>
+    <div class="role-box">
+      🚔 警察：<span id="policeSeat">等待玩家</span>
+      <button id="btnPolice" onclick="choose('police')">加入</button>
+    </div>
+    <div class="role-box">
+      🔫 搶匪：<span id="robberSeat">等待玩家</span>
+      <button id="btnRobber" onclick="choose('robber')">加入</button>
+    </div>
+    <div class="role-box">
+      👁 觀戰：<span id="spectatorList">0</span>
+      <button onclick="choose('spectator')">觀戰</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let myRoomId = null, myIsHost = false, myRole = '觀戰';
+
+socket.on('connect', () => {
+  const defaultName = '玩家' + socket.id.slice(0, 6);
+  document.getElementById('myName').innerText = defaultName;
+  document.getElementById('nickname').value = defaultName;
+  socket.emit('setName', defaultName);
+});
+
+function setName() {
+  const name = document.getElementById('nickname').value.trim();
+  if (!name) return alert('請輸入名稱');
+  socket.emit('setName', name);
+  document.getElementById('myName').innerText = name;
+}
+
+// === 房間操作 ===
+function createRoom() {
+  if (myRoomId) return alert('你已在房間內，不能再建立新房');
+  socket.emit('createRoom', (roomId) => {
+    myRoomId = roomId;
+    myRole = '觀戰';
+    myIsHost = true;
+    document.getElementById('roomTitle').innerText = roomId + ' 房間';
+    document.getElementById('myRole').innerText = myRole;
+    document.getElementById('hostSettings').style.display = 'block';
+    updateHostUI();
+    socket.emit('chooseRole', 'spectator');
+  });
+}
+
+function joinRoom() {
+  if (myRoomId) return alert('你已在房間內，不能加入其他房間');
+  const id = document.getElementById('roomIdInput').value.trim();
+  if (!id) return alert('請輸入房號');
+  socket.emit('joinRoom', id, (success, msg) => {
+    if (!success) return alert(msg || '加入失敗');
+    myRoomId = id;
+    myRole = '觀戰';
+    myIsHost = false;
+    document.getElementById('roomTitle').innerText = id + ' 房間';
+    document.getElementById('myRole').innerText = myRole;
+    document.getElementById('hostSettings').style.display = 'block';
+    updateHostUI();
+    socket.emit('chooseRole', 'spectator');
+  });
+}
+
+function leaveRoom() {
+  if (!myRoomId) return;
+  socket.emit('leaveRoom');
+  resetLocalRoom();
+}
+
+function resetLocalRoom() {
+  myRoomId = null;
+  myIsHost = false;
+  myRole = '觀戰';
+  document.getElementById('roomTitle').innerText = '未加入房間';
+  document.getElementById('myRole').innerText = myRole;
+  document.getElementById('hostSettings').style.display = 'none';
+  ['bankSeat','policeSeat','robberSeat','spectatorList'].forEach(id => {
+    document.getElementById(id).innerText = id==='spectatorList'?'0':'等待玩家';
+  });
+  updateHostUI();
+}
+
+// 選角色
+function choose(role) {
+  socket.emit('chooseRole', role);
+}
+
+function toggleSettings() {
+  const hostSettings = document.getElementById('hostSettings');
+  hostSettings.style.display = hostSettings.style.display === 'none' ? 'block' : 'none';
+}
+
+// 更新設定
+function updateSettings() {
+  if (!myIsHost) return;
+  const settings = {
+    totalRounds: Number(set_rounds.value),
+    invest: { percent: Number(set_investPercent.value), min: Number(set_investMin.value), max: Number(set_investMax.value) },
+    corrupt: { percent: Number(set_corruptPercent.value), min: Number(set_corruptMin.value) },
+    rob: { percent: Number(set_robPercent.value), min: Number(set_robMin.value) },
+    scoutBonus: Number(set_scoutBonus.value),
+    tunnelNeed: Number(set_tunnelNeed.value),
+    tunnelMax: Number(set_tunnelMax.value),
+    bankCost: { sec: Number(set_bankSec.value), cam: Number(set_bankCam.value), invest: Number(set_bankInvest.value) },
+    policeCost: { def: Number(set_policeDef.value), patrol: Number(set_policePatrol.value), corrupt: Number(set_policeCorrupt.value) },
+    robberCost: { rob: Number(set_robRob.value), ground: Number(set_robGround.value), scout: Number(set_robScout.value), dig: Number(set_robDig.value) }
+  };
+  socket.emit('updateSettings', settings);
+}
+
+// 開始遊戲
+function startGame() {
+  if (!myIsHost) return;
+  socket.emit('startGame');
+}
+
+// 更新房主 UI 與按鈕狀態
+function updateHostUI() {
+  const inputs = document.querySelectorAll('#hostSettings input,#updateSettingsBtn,#startBtn');
+  inputs.forEach(el => el.disabled = !myIsHost);
+
+  // 建立房間按鈕禁用
+  document.querySelector('button[onclick="createRoom()"]').disabled = !!myRoomId;
+}
+
+// ===== Socket 事件 =====
+socket.on('roomUpdate', data => {
+  if (!data) return;
+
+  const stillInRoom = ['bank','police','robber'].some(r => data.players[r]?.id === socket.id) ||
+                      data.spectators.find(s => s.id === socket.id);
+  if (!stillInRoom) {
+    resetLocalRoom();
+    return;
+  }
+
+  myRoomId = data.roomId;
+  myIsHost = (socket.id === data.host);
+
+  ['bank','police','robber'].forEach(role => {
+    const seat = document.getElementById(role+'Seat');
+    const info = data.players[role];
+    let name = info ? info.name : '等待玩家';
+    if(info && info.id === data.host) name += ' ⭐';
+    seat.innerText = name;
+    document.getElementById('btn'+role.charAt(0).toUpperCase()+role.slice(1)).disabled = !!info;
+  });
+
+  const specList = data.spectators.map(o => {
+    let n = o.name;
+    if (n.length > 10) n = n.slice(0,10) + '…';
+    if(o.id === data.host) n += ' ⭐';
+    return n;
+  }).join(', ');
+  document.getElementById('spectatorList').innerText = specList || '0';
+
+  if(['bank','police','robber'].some(r=>data.players[r]?.id===socket.id)){
+    myRole = Object.keys(data.players).find(r=>data.players[r]?.id===socket.id);
+  } else {
+    myRole = '觀戰';
+  }
+  document.getElementById('myRole').innerText = myRole;
+
+  updateHostUI();
+
+  document.getElementById('startBtn').disabled = !(myIsHost && data.players.bank && data.players.police && data.players.robber);
+
+  // 踢人列表
+  const container = document.getElementById('kickList');
+  container.innerHTML = '';
+  if(myIsHost){
+    ['bank','police','robber'].forEach(role => {
+      const p = data.players[role]; 
+      if(p && p.id !== socket.id){
+        const btn = document.createElement('button'); 
+        btn.textContent = `踢 ${p.name}`; 
+        btn.onclick = () => socket.emit('kickPlayer', p.id); 
+        container.appendChild(btn);
+      }
+    });
+    data.spectators.forEach(s => { 
+      if(s.id !== socket.id){ 
+        const btn = document.createElement('button'); 
+        btn.textContent = `踢 ${s.name}`; 
+        btn.onclick = () => socket.emit('kickPlayer', s.id); 
+        container.appendChild(btn); 
+      } 
+    });
+  }
+});
+
+// 更新房間設定
+socket.on('settingsUpdate', s => {
+  set_rounds.value = s.totalRounds;
+  set_investPercent.value = s.invest.percent;
+  set_investMin.value = s.invest.min;
+  set_investMax.value = s.invest.max;
+  set_corruptPercent.value = s.corrupt.percent;
+  set_corruptMin.value = s.corrupt.min;
+  set_robPercent.value = s.rob.percent;
+  set_robMin.value = s.rob.min;
+  set_scoutBonus.value = s.scoutBonus;
+  set_tunnelNeed.value = s.tunnelNeed;
+  set_tunnelMax.value = s.tunnelMax;
+  set_bankSec.value = s.bankCost.sec;
+  set_bankCam.value = s.bankCost.cam;
+  set_bankInvest.value = s.bankCost.invest;
+  set_policeDef.value = s.policeCost.def;
+  set_policePatrol.value = s.policeCost.patrol;
+  set_policeCorrupt.value = s.policeCost.corrupt;
+  set_robRob.value = s.robberCost.rob;
+  set_robGround.value = s.robberCost.ground;
+  set_robScout.value = s.robberCost.scout;
+  set_robDig.value = s.robberCost.dig;
+});
+
+// 遊戲開始，跳轉 HeistGame.html
+socket.on('gameStart', settings => {
+  sessionStorage.setItem('gameSettings', JSON.stringify(settings));
+  sessionStorage.setItem('myRole', myRole);
+  window.location.href = '/HeistGame.html';
+});
+
+// 被踢或離開房間
+socket.on('leaveRoom', () => {
+  alert('你已被踢出或離開房間！');
+  resetLocalRoom();
+});
+</script>
+</body>
+</html>

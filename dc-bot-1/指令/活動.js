@@ -54,7 +54,7 @@ module.exports = {
             .setColor(0x00ff00)
             .setFooter({ text: `時間：${formatMinutes(minutes)} | 功德：${rangeText}` });
 
-        const claimed = new Map(); // userId → 獲得功德
+        const claimed = new Map();
         let message;
 
         try {
@@ -92,7 +92,7 @@ module.exports = {
             const total = claimed.size;
             const sorted = [...claimed.entries()].sort((a, b) => b[1] - a[1]);
             const displayTop = sorted.slice(0, 10);
-            let summary = `📌 活動結束！共 **${total} 位** 玩家參與：\n\n`;
+            let summary = `-# 時間：${formatMinutes(minutes)} | 功德：${rangeText}\n📌 活動結束！共 **${total} 位** 玩家參與：\n\n`;
 
             for (const [userId, gain] of displayTop) {
                 summary += `💎 獲得 **${gain} 功德** → <@${userId}>\n`;

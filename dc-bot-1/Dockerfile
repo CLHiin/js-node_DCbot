@@ -10,7 +10,7 @@ WORKDIR /usr/src/app
 ENV GITHUB_TOKEN=
 
 # 先 clone XX 分支
-RUN git clone -b main https://$GITHUB_TOKEN@github.com/網址 .
+RUN git clone -b service https://$GITHUB_TOKEN@github.com/網址 .
 
 # 安裝依賴
 RUN npm install --production

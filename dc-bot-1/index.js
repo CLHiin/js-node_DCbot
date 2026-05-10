@@ -175,15 +175,15 @@ app.post('/reconnect', async (req, res) => {
     lastError
   });
 });
+// 🚀 啟動 Discord Bot
+loginBot();
 
-// ======================
-// 🚀 啟動 Express
-// ======================
-app.listen(process.env.PORT || 3000, () => {
+const http = require('http');
+const { Server } = require('socket.io');
+const server = http.createServer(app); 
+const io = new Server(server);
+require('./Heist/HeistOperation')(io);
+server.listen(process.env.PORT || 3000, () => {
   console.log('🌐 網站已啟動');
 });
 
-// ======================
-// 🚀 啟動 Discord Bot
-// ======================
-loginBot();

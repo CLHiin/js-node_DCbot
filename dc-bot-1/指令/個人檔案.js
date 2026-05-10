@@ -43,18 +43,11 @@ module.exports = {
           inline: false
         },
         { name: '💬 自訂留言', value: user.留言 || '無', inline: false },
-        { 
-          name: '特殊物件', 
-          value: Object.entries(user.特殊物件).length > 0
-            ? Object.entries(user.特殊物件).map(([k,v]) => `${k} × ${v}`).join('\n')
-            : '無',
-          inline: false
-        },
         {
           name: '🏆 常駐獎池狀態',
           value: 
             `總抽數：${user.常駐獎池.總計抽數}\n` +
-            `該期抽數：${user.限定獎池.該期抽數}\n` +
+            `該期抽數：${user.常駐獎池.該期抽數}\n` +
             `小保底：${user.常駐獎池.小保}\n` +
             `大保底：${user.常駐獎池.大保}`,
           inline: false
@@ -66,6 +59,13 @@ module.exports = {
             `該期抽數：${user.限定獎池.該期抽數}\n` +
             `小保底：${user.限定獎池.小保}\n` +
             `大保底：${user.限定獎池.大保}`,
+          inline: false
+        },
+        { 
+          name: '特殊物件', 
+          value: Object.entries(user.特殊物件).length > 0
+            ? Object.entries(user.特殊物件).map(([k,v]) => `${k} × ${v}`).join('\n')
+            : '無',
           inline: false
         }
       );
